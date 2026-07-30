@@ -170,8 +170,8 @@ For each lead return:
 - source_url: page used to verify
 
 Return strict JSON only, max 10 leads. Prefer fresh companies not already widely known mega-brands.
-Prefer real https links. Do not invent emails or profile URLs.
-CRITERIA,
+Prefer real https links. Never invent names, emails, or LinkedIn URLs — use JSON null if unverified. Prefer fewer real leads over padding with guesses.
+CRITERIA
         ],
         'uk_security_wales_scotland' => [
             'label' => 'UK security firms — Wales / Scotland',
