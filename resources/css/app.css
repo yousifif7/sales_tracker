@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-slate-950 text-slate-100;
+    }
+}
+
+@layer components {
+    .panel {
+        @apply rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-slate-950/30;
+    }
+
+    .btn-primary {
+        @apply inline-flex items-center justify-center rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-sky-400;
+    }
+
+    .btn-secondary {
+        @apply inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-600 hover:bg-slate-800;
+    }
+
+    .input {
+        @apply mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20;
+    }
+
+    .label {
+        @apply text-sm font-medium text-slate-200;
+    }
+
+    .table-wrap {
+        @apply overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/70;
+    }
+
+    .table {
+        @apply min-w-full divide-y divide-slate-800 text-left text-sm text-slate-300;
+    }
+
+    .table th {
+        @apply bg-slate-900 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500;
+    }
+
+    .table td {
+        @apply px-4 py-4 align-top;
+    }
+
+    .table-compact th,
+    .table-compact td {
+        @apply px-3 py-2.5;
+    }
+
+    .table-compact th {
+        @apply tracking-[0.12em];
+    }
+
+    .link-action {
+        @apply text-sky-300 hover:text-sky-200;
+    }
+
+    .link-danger {
+        @apply text-rose-300 hover:text-rose-200;
+    }
+
+    .row-actions {
+        @apply inline-flex flex-wrap items-center justify-end gap-x-3 gap-y-1;
+    }
+
+    .rich-editor {
+        @apply space-y-2;
+    }
+
+    .rich-toolbar {
+        @apply mt-2 flex flex-wrap items-center gap-1 rounded-2xl border border-slate-700 bg-slate-900 p-2;
+    }
+
+    .rich-toolbar button {
+        @apply rounded-lg border border-transparent px-2.5 py-1.5 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800;
+    }
+
+    .rich-sep {
+        @apply mx-1 h-5 w-px bg-slate-700;
+    }
+
+    .rich-surface {
+        @apply mt-0 min-h-64 overflow-y-auto whitespace-pre-wrap break-words;
+    }
+
+    .rich-surface:focus {
+        @apply border-sky-400 outline-none ring-2 ring-sky-500/20;
+    }
+
+    .rich-surface p {
+        @apply mb-3;
+    }
+
+    .rich-surface ul {
+        @apply mb-3 list-disc pl-6;
+    }
+
+    .rich-surface ol {
+        @apply mb-3 list-decimal pl-6;
+    }
+
+    .rich-surface a {
+        @apply text-sky-300 underline;
+    }
+
+    .prose-email p {
+        @apply mb-3;
+    }
+
+    .prose-email ul {
+        @apply mb-3 list-disc pl-6;
+    }
+
+    .prose-email ol {
+        @apply mb-3 list-decimal pl-6;
+    }
+
+    .prose-email a {
+        @apply text-sky-300 underline;
+    }
+}

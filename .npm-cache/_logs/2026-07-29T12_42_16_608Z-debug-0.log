@@ -1,0 +1,28 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\Yousif\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.4.1
+2 info using node@v22.16.0
+3 silly config load:file:C:\Users\Yousif\AppData\Roaming\npm\node_modules\npm\npmrc
+4 warn Unknown env config "devdir". This will stop working in the next major version of npm.
+5 silly config load:file:F:\laravel projects\sales-tracker\.npmrc
+6 silly config load:file:C:\Users\Yousif\.npmrc
+7 silly config load:file:C:\Users\Yousif\AppData\Roaming\npm\etc\npmrc
+8 verbose title npm install
+9 verbose argv "install" "--no-fund" "--no-audit"
+10 verbose logfile logs-max:10 dir:F:\laravel projects\sales-tracker\.npm-cache\_logs\2026-07-29T12_42_16_608Z-
+11 verbose logfile F:\laravel projects\sales-tracker\.npm-cache\_logs\2026-07-29T12_42_16_608Z-debug-0.log
+12 silly logfile done cleaning log files
+13 silly packumentCache heap:2197815296 maxSize:549453824 maxEntrySize:274726912
+14 silly idealTree buildDeps
+15 silly fetch manifest autoprefixer@^10.4.20
+16 silly packumentCache full:https://registry.npmjs.org/autoprefixer cache-miss
+17 http fetch GET 200 https://registry.npmjs.org/autoprefixer 869ms (cache miss)
+18 silly packumentCache full:https://registry.npmjs.org/autoprefixer set size:undefined disposed:false
+19 silly fetch manifest postcss@^8.4.47
+20 silly packumentCache full:https://registry.npmjs.org/postcss cache-miss
+21 verbose cwd F:\laravel projects\sales-tracker
+22 verbose os Windows_NT 10.0.17763
+23 verbose node v22.16.0
+24 verbose npm  v11.4.1
+25 verbose exit 1
+26 verbose code 1
+27 error A complete log of this run can be found in: F:\laravel projects\sales-tracker\.npm-cache\_logs\2026-07-29T12_42_16_608Z-debug-0.log

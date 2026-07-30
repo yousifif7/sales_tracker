@@ -1,0 +1,19 @@
+<svg width="420" height="96" viewBox="0 0 420 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sales Tracker">
+  <defs>
+    <linearGradient id="sales-tracker-gradient" x1="14" y1="14" x2="82" y2="82" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DD3FC"/>
+      <stop offset="0.55" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Mark: rising sales chart -->
+  <rect x="6" y="6" width="84" height="84" rx="24" fill="#020617"/>
+  <rect x="7.5" y="7.5" width="81" height="81" rx="22.5" stroke="#1E293B" stroke-width="3"/>
+  <path d="M28 56C35.5 46.2 42.7 41.3 49.6 41.3C56.1 41.3 60.9 45 63.8 52.4C66.2 58.6 69.4 61.7 73.4 61.7C76.6 61.7 79.8 60.1 83 56.8" stroke="url(#sales-tracker-gradient)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M29 69.5L41.4 52.1L51.5 59L68.9 33" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="68.9" cy="33" r="5.5" fill="#7DD3FC"/>
+
+  <!-- Wordmark -->
+  <text x="112" y="62" fill="#FFFFFF" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="36" font-weight="700" letter-spacing="-0.5">Sales Tracker</text>
+</svg>

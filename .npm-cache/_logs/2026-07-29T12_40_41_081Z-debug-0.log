@@ -1,0 +1,23 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\Yousif\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.4.1
+2 info using node@v22.16.0
+3 silly config load:file:C:\Users\Yousif\AppData\Roaming\npm\node_modules\npm\npmrc
+4 silly config load:file:F:\laravel projects\sales-tracker\.npmrc
+5 silly config load:file:C:\Users\Yousif\.npmrc
+6 silly config load:file:C:\Users\Yousif\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--no-fund" "--no-audit" "--loglevel" "verbose"
+9 verbose logfile logs-max:10 dir:F:\laravel projects\sales-tracker\.npm-cache\_logs\2026-07-29T12_40_41_081Z-
+10 verbose logfile F:\laravel projects\sales-tracker\.npm-cache\_logs\2026-07-29T12_40_41_081Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:2197815296 maxSize:549453824 maxEntrySize:274726912
+13 silly idealTree buildDeps
+14 silly fetch manifest autoprefixer@^10.4.20
+15 silly packumentCache full:https://registry.npmjs.org/autoprefixer cache-miss
+16 verbose cwd F:\laravel projects\sales-tracker
+17 verbose os Windows_NT 10.0.17763
+18 verbose node v22.16.0
+19 verbose npm  v11.4.1
+20 verbose exit 1
+21 verbose code 1
+22 error A complete log of this run can be found in: F:\laravel projects\sales-tracker\.npm-cache\_logs\2026-07-29T12_40_41_081Z-debug-0.log

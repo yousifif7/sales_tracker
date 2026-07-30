@@ -1,0 +1,2 @@
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm.
+npm error A complete log of this run can be found in: F:\laravel projects\sales-tracker\.npm-cache\_logs\2026-07-29T12_42_16_608Z-debug-0.log

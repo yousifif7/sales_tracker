@@ -1,0 +1,104 @@
+HOSTINGER CRON + QUEUE SETUP
+============================
+
+1) Production .env values (on Hostinger)
+---------------------------------------
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your-domain.com
+
+QUEUE_CONNECTION=database
+CACHE_STORE=database
+SESSION_DRIVER=database
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=587
+MAIL_USERNAME=your-mailbox@your-domain.com
+MAIL_PASSWORD=your-mailbox-password
+MAIL_FROM_ADDRESS=your-mailbox@your-domain.com
+MAIL_FROM_NAME="FieldLine"
+
+IMAP_HOST=imap.hostinger.com
+IMAP_PORT=993
+IMAP_ENCRYPTION=ssl
+IMAP_VALIDATE_CERT=true
+IMAP_USERNAME=your-mailbox@your-domain.com
+IMAP_PASSWORD=your-mailbox-password
+IMAP_FOLDER=INBOX
+IMAP_MARK_AS_READ=false
+
+OPENROUTER_API_KEY=your-openrouter-key
+OPENROUTER_MODEL=openai/gpt-4o-mini:online
+
+
+2) One-time deploy commands (SSH or Hostinger terminal)
+-------------------------------------------------------
+cd /home/USER/domains/YOURDOMAIN/public_html
+
+composer install --no-dev --optimize-autoloader
+php artisan key:generate
+php artisan migrate --force
+php artisan db:seed --class=RolesAndPermissionsSeeder --force
+php artisan db:seed --class=EmailTemplateSeeder --force
+php artisan db:seed --class=LeadSearchPresetSeeder --force
+# Optional demo contacts from strategy kits:
+# php artisan db:seed --class=StrategyTargetsSeeder --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:clear
+php artisan view:cache
+php artisan storage:link
+php artisan app:hostinger-status
+
+
+3) Hostinger Cron Job (important)
+---------------------------------
+In hPanel -> Advanced -> Cron Jobs:
+
+Type: Custom
+Frequency: Every minute
+Command:
+
+* * * * * cd /home/USER/domains/YOURDOMAIN/public_html && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
+
+Notes:
+- Replace USER / YOURDOMAIN with your real Hostinger paths.
+- If Hostinger shows a different PHP binary (php8.2, php8.3), use that instead of /usr/bin/php.
+- This single cron runs ALL scheduled tasks: queue worker + IMAP inbox sync.
+
+
+4) What the scheduler runs automatically
+----------------------------------------
+Every minute:
+- queue:work (drains AI lead search jobs + any queued jobs)
+- email:sync-imap (imports replies into Inbox threads)
+
+Daily:
+- prune failed jobs older than 7 days
+- reset Spatie permission cache
+
+
+5) Verify it works
+------------------
+php artisan schedule:list
+php artisan app:hostinger-status
+php artisan email:sync-imap
+php artisan queue:failed
+
+Then:
+1. Login to CRM
+2. Send an outreach email (Inbox thread is created with Sent status)
+3. Open the email on the recipient side (Opened via tracking pixel when images load)
+4. Reply from the contact mailbox
+5. Wait ~1 minute, refresh Inbox — Responded badge + reply appear
+6. Reply from the thread page
+
+
+6) Document root tip
+--------------------
+If Laravel is in public_html directly, point domain document root to /public
+or move contents so public/ is the web root.
+
+Never leave APP_DEBUG=true in production.
+Set a public HTTPS APP_URL so open-tracking pixels resolve correctly.
