@@ -1,7 +1,7 @@
 <x-layouts.app title="Contacts | Sales Tracker" heading="Contacts" eyebrow="Lead and prospect management">
     <section class="panel mb-6">
-        <form method="get" class="grid gap-3 lg:grid-cols-5">
-            <input class="input mt-0 lg:col-span-2" name="search" value="{{ request('search') }}" placeholder="Search name, company, email">
+        <form method="get" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <input class="input mt-0 sm:col-span-2" name="search" value="{{ request('search') }}" placeholder="Search name, company, email">
             <select class="input mt-0" name="status">
                 <option value="">All statuses</option>
                 @foreach ($statusOptions as $value => $label)
@@ -20,17 +20,17 @@
                     <option value="{{ $tag->name }}" @selected(request('tag') === $tag->name)>{{ $tag->name }}</option>
                 @endforeach
             </select>
-            <div class="lg:col-span-5 flex gap-3">
+            <div class="filter-actions sm:col-span-2 lg:col-span-5">
                 <button class="btn-primary" type="submit">Filter</button>
                 <a class="btn-secondary" href="{{ route('contacts.index') }}">Reset</a>
                 @can(\App\Support\Permissions::CONTACTS_CREATE)
-                    <a class="btn-secondary ml-auto" href="{{ route('contacts.create') }}">New contact</a>
+                    <a class="btn-secondary sm:ml-auto" href="{{ route('contacts.create') }}">New contact</a>
                 @endcan
             </div>
         </form>
     </section>
 
-    <x-data-table>
+    <x-data-table wide>
         <thead>
             <tr>
                 <th>Name</th>

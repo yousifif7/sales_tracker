@@ -96,8 +96,30 @@
 
     @can(\App\Support\Permissions::EMAILS_SEND)
         <section class="panel">
-            <h3 class="mb-4 text-lg font-semibold text-white">Reply</h3>
-            <form method="post" action="{{ route('email-threads.reply', $thread) }}" class="space-y-5" data-rich-form>
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h3 class="text-lg font-semibold text-white">Reply</h3>
+                @can(\App\Support\Permissions::EMAIL_TEMPLATES_VIEW)
+                    <a class="btn-secondary shrink-0" href="{{ route('email-templates.index') }}">Manage templates</a>
+                @endcan
+            </div>
+
+            <form method="get" action="{{ route('email-threads.show', $thread) }}#reply" class="mb-6 grid gap-4 md:grid-cols-[1fr,auto]">
+                <div>
+                    <label class="label" for="template">Load template</label>
+                    <select class="input" id="template" name="template">
+                        <option value="">Blank reply</option>
+                        @foreach ($templates as $key => $label)
+                            <option value="{{ $key }}" @selected((string) ($selectedTemplate ?? '') === (string) $key)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-2 text-xs text-slate-500">Applies the template body. Reply subject stays on this thread.</p>
+                </div>
+                <div class="flex items-end">
+                    <button class="btn-secondary w-full md:w-auto" type="submit">Apply template</button>
+                </div>
+            </form>
+
+            <form id="reply" method="post" action="{{ route('email-threads.reply', $thread) }}" class="space-y-5" data-rich-form>
                 @csrf
                 <div>
                     <label class="label" for="subject">Subject</label>

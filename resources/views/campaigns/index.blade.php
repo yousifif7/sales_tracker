@@ -1,7 +1,7 @@
 <x-layouts.app title="Campaigns | Sales Tracker" heading="Campaigns" eyebrow="Outreach campaign tracking">
-    <div class="mb-6 flex justify-end">
+    <div class="mb-6 flex flex-wrap justify-stretch gap-3 sm:justify-end">
         @can(\App\Support\Permissions::CAMPAIGNS_CREATE)
-            <a class="btn-primary" href="{{ route('campaigns.create') }}">New campaign</a>
+            <a class="btn-primary w-full sm:w-auto" href="{{ route('campaigns.create') }}">New campaign</a>
         @endcan
     </div>
 

@@ -1,7 +1,7 @@
 <x-layouts.app title="Roles & Permissions | Sales Tracker" heading="Roles & Permissions" eyebrow="Access control">
-    <div class="mb-6 flex justify-end">
+    <div class="mb-6 flex flex-wrap justify-stretch gap-3 sm:justify-end">
         @can(\App\Support\Permissions::ROLES_CREATE)
-            <a class="btn-primary" href="{{ route('roles.create') }}">New role</a>
+            <a class="btn-primary w-full sm:w-auto" href="{{ route('roles.create') }}">New role</a>
         @endcan
     </div>
 

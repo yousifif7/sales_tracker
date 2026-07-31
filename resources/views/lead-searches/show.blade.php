@@ -7,7 +7,7 @@
                 </p>
                 <p class="mt-2 max-h-24 overflow-y-auto whitespace-pre-wrap text-sm text-slate-300">{{ $query->criteria }}</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-3">
                 <span @class([
                     'inline-flex rounded-full px-3 py-1 text-xs font-semibold',
                     'bg-emerald-500/15 text-emerald-200' => filled($query->raw_results),
@@ -27,7 +27,7 @@
         </div>
     </section>
 
-    <x-data-table>
+    <x-data-table wide>
         <thead>
             <tr>
                 <th>Name</th>

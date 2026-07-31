@@ -1,11 +1,11 @@
 <x-layouts.app title="Interactions | Sales Tracker" heading="Interactions" eyebrow="Outreach activity log">
-    <div class="mb-6 flex justify-end">
+    <div class="mb-6 flex flex-wrap justify-stretch gap-3 sm:justify-end">
         @can(\App\Support\Permissions::INTERACTIONS_CREATE)
-            <a class="btn-primary" href="{{ route('interactions.create') }}">Log interaction</a>
+            <a class="btn-primary w-full sm:w-auto" href="{{ route('interactions.create') }}">Log interaction</a>
         @endcan
     </div>
 
-    <x-data-table>
+    <x-data-table wide>
         <thead>
             <tr>
                 <th>Contact</th>

@@ -1,7 +1,16 @@
-@props(['compact' => true])
+@props([
+    'compact' => true,
+    'wide' => false,
+])
 
 <div {{ $attributes->merge(['class' => 'table-wrap']) }}>
-    <table class="table {{ $compact ? 'table-compact' : '' }}">
-        {{ $slot }}
-    </table>
+    <div class="table-scroll">
+        <table @class([
+            'table',
+            'table-compact' => $compact,
+            'table-wide' => $wide,
+        ])>
+            {{ $slot }}
+        </table>
+    </div>
 </div>

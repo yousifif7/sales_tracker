@@ -1,11 +1,11 @@
 <x-layouts.app title="AI Lead Search | Sales Tracker" heading="AI Lead Search" eyebrow="Queued OpenRouter lead discovery">
-    <div class="mb-6 flex justify-end">
+    <div class="mb-6 flex flex-wrap justify-stretch gap-3 sm:justify-end">
         @can(\App\Support\Permissions::LEAD_SEARCHES_CREATE)
-            <a class="btn-primary" href="{{ route('lead-searches.create') }}">New AI Search</a>
+            <a class="btn-primary w-full sm:w-auto" href="{{ route('lead-searches.create') }}">New AI Search</a>
         @endcan
     </div>
 
-    <x-data-table>
+    <x-data-table wide>
         <thead>
             <tr>
                 <th>When</th>

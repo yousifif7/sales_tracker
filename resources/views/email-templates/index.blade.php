@@ -1,7 +1,7 @@
 <x-layouts.app title="Email Templates | Sales Tracker" heading="Email Templates" eyebrow="Outreach message library">
-    <div class="mb-6 flex justify-end">
+    <div class="mb-6 flex flex-wrap justify-stretch gap-3 sm:justify-end">
         @can(\App\Support\Permissions::EMAIL_TEMPLATES_CREATE)
-            <a class="btn-primary" href="{{ route('email-templates.create') }}">New template</a>
+            <a class="btn-primary w-full sm:w-auto" href="{{ route('email-templates.create') }}">New template</a>
         @endcan
     </div>
 

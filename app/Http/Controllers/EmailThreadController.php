@@ -7,6 +7,7 @@ use App\Http\Requests\ReplyEmailThreadRequest;
 use App\Models\EmailThread;
 use App\Services\OutreachEmailService;
 use App\Support\CurrentUserResolver;
+use App\Support\OutreachTemplateRenderer;
 use App\Support\Permissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,8 @@ class EmailThreadController extends Controller
         $this->authorizePermission(Permissions::EMAILS_INBOX);
 
         $perPage = $this->resolvePerPage($request);
+        $dateFrom = $this->resolveDateFilter($request->input('date_from'));
+        $dateTo = $this->resolveDateFilter($request->input('date_to'));
 
         $threads = EmailThread::query()
             ->with(['contact', 'latestMessage'])
@@ -49,6 +52,8 @@ class EmailThreadController extends Controller
                         });
                 });
             })
+            ->when($dateFrom, fn ($q) => $q->whereDate('last_message_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->whereDate('last_message_at', '<=', $dateTo))
             ->latest('last_message_at')
             ->paginate($perPage)
             ->withQueryString();
@@ -58,6 +63,8 @@ class EmailThreadController extends Controller
             'trashedCount' => EmailThread::onlyTrashed()->count(),
             'stats' => $this->inboxStats(),
             'perPage' => $perPage,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
         ]);
     }
 
@@ -95,7 +102,7 @@ class EmailThreadController extends Controller
         ]);
     }
 
-    public function show(EmailThread $emailThread): View
+    public function show(EmailThread $emailThread, OutreachTemplateRenderer $templates): View
     {
         $this->authorizePermission(Permissions::EMAILS_INBOX);
 
@@ -113,10 +120,20 @@ class EmailThreadController extends Controller
             ? $emailThread->subject
             : 'Re: '.$emailThread->subject;
 
+        $templateKey = request('template');
+        $replyBody = old('body', '');
+
+        if (filled($templateKey) && $emailThread->contact && ! old('body')) {
+            $rendered = $templates->render((string) $templateKey, $emailThread->contact);
+            $replyBody = $rendered['body'];
+        }
+
         return view('email-threads.show', [
             'thread' => $emailThread,
+            'templates' => $templates->options(),
+            'selectedTemplate' => $templateKey,
             'replySubject' => old('subject', $replySubject),
-            'replyBody' => old('body', ''),
+            'replyBody' => $replyBody,
         ]);
     }
 
@@ -272,5 +289,18 @@ class EmailThreadController extends Controller
         $perPage = (int) $request->input('per_page', 20);
 
         return in_array($perPage, [10, 20, 50, 100], true) ? $perPage : 20;
+    }
+
+    protected function resolveDateFilter(mixed $value): ?string
+    {
+        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $value)->toDateString();
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

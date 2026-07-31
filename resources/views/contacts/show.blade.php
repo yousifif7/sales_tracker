@@ -1,16 +1,16 @@
 <x-layouts.app title="{{ $contact->name }} | Sales Tracker" heading="{{ $contact->name }}" eyebrow="Contact profile">
-    <div class="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
-        <section class="panel">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <p class="text-sm text-slate-400">{{ $contact->company ?: 'No company set' }}</p>
-                    <h3 class="mt-1 text-2xl font-semibold text-white">{{ $contact->name }}</h3>
+    <div class="grid gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">
+        <section class="panel min-w-0">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div class="min-w-0">
+                    <p class="break-words text-sm text-slate-400">{{ $contact->company ?: 'No company set' }}</p>
+                    <h3 class="mt-1 break-words text-2xl font-semibold text-white">{{ $contact->name }}</h3>
                     <div class="mt-3 flex flex-wrap gap-2 text-xs">
                         <span class="rounded-full bg-sky-500/15 px-3 py-1 font-semibold text-sky-200">{{ $contact->status->label() }}</span>
                         <span class="rounded-full bg-slate-800 px-3 py-1 font-semibold text-slate-300">{{ $contact->source->label() }}</span>
                     </div>
                 </div>
-                <div class="flex flex-wrap gap-3">
+                <div class="flex flex-wrap items-center gap-2">
                     @can(\App\Support\Permissions::EMAILS_SEND)
                         @if ($contact->email)
                             <a class="btn-primary" href="{{ route('contacts.email.create', $contact) }}">Send email</a>
@@ -20,7 +20,7 @@
                         <a class="btn-secondary" href="{{ route('contacts.edit', $contact) }}">Edit</a>
                     @endcan
                     @can(\App\Support\Permissions::CONTACTS_DELETE)
-                        <form method="post" action="{{ route('contacts.destroy', $contact) }}" onsubmit="return confirm('Delete this contact?')">
+                        <form method="post" action="{{ route('contacts.destroy', $contact) }}" class="inline-flex" onsubmit="return confirm('Delete this contact?')">
                             @csrf
                             @method('delete')
                             <button class="btn-secondary" type="submit">Delete</button>
@@ -29,10 +29,14 @@
                 </div>
             </div>
 
-            <dl class="mt-6 grid gap-4 md:grid-cols-2">
-                <div>
+            <dl class="mt-6 grid gap-5 sm:grid-cols-2">
+                <div class="min-w-0 sm:col-span-2">
+                    <dt class="text-sm text-slate-500">Company</dt>
+                    <dd class="mt-1 break-words text-slate-200">{{ $contact->company ?: 'Not provided' }}</dd>
+                </div>
+                <div class="min-w-0 sm:col-span-2">
                     <dt class="text-sm text-slate-500">Email</dt>
-                    <dd class="mt-1">
+                    <dd class="mt-1 break-all">
                         @if ($contact->email)
                             <a href="mailto:{{ $contact->email }}" class="text-sky-300 hover:text-sky-200">{{ $contact->email }}</a>
                         @else
@@ -40,12 +44,16 @@
                         @endif
                     </dd>
                 </div>
-                <div>
+                <div class="min-w-0">
                     <dt class="text-sm text-slate-500">Phone</dt>
-                    <dd class="mt-1 text-slate-200">{{ $contact->phone ?: 'Not provided' }}</dd>
+                    <dd class="mt-1 break-words text-slate-200">{{ $contact->phone ?: 'Not provided' }}</dd>
                 </div>
-                <div class="md:col-span-2">
-                    <dt class="text-sm text-slate-500 mb-2">Quick contact links</dt>
+                <div class="min-w-0">
+                    <dt class="text-sm text-slate-500">Source</dt>
+                    <dd class="mt-1 text-slate-200">{{ $contact->source->label() }}</dd>
+                </div>
+                <div class="min-w-0 sm:col-span-2">
+                    <dt class="mb-2 text-sm text-slate-500">Quick contact links</dt>
                     <dd>
                         <x-outreach-links :links="$contact->outreachLinks()" />
                         @if (! count($contact->outreachLinks()))
@@ -53,7 +61,7 @@
                         @endif
                     </dd>
                 </div>
-                <div class="md:col-span-2">
+                <div class="min-w-0 sm:col-span-2">
                     <dt class="text-sm text-slate-500">Tags</dt>
                     <dd class="mt-2 flex flex-wrap gap-2">
                         @forelse ($contact->tags as $tag)
@@ -63,20 +71,20 @@
                         @endforelse
                     </dd>
                 </div>
-                <div class="md:col-span-2">
+                <div class="min-w-0 sm:col-span-2">
                     <dt class="text-sm text-slate-500">Notes</dt>
-                    <dd class="mt-2 whitespace-pre-wrap text-slate-300">{{ $contact->notes ?: 'No notes yet.' }}</dd>
+                    <dd class="mt-2 whitespace-pre-wrap break-words text-slate-300">{{ $contact->notes ?: 'No notes yet.' }}</dd>
                 </div>
             </dl>
         </section>
 
-        <section class="panel">
-            <div class="flex items-center justify-between mb-4">
-                <div>
+        <section class="panel min-w-0">
+            <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div class="min-w-0">
                     <h3 class="text-lg font-semibold text-white">Upcoming Follow-ups</h3>
                     <p class="text-sm text-slate-400">Tasks tied to this contact.</p>
                 </div>
-                <a href="{{ route('follow-ups.create', ['contact_id' => $contact->id]) }}" class="text-sm text-sky-300 hover:text-sky-200">Add task</a>
+                <a href="{{ route('follow-ups.create', ['contact_id' => $contact->id]) }}" class="shrink-0 text-sm text-sky-300 hover:text-sky-200">Add task</a>
             </div>
 
             <x-data-table>
@@ -125,20 +133,20 @@
     </div>
 
     @can(\App\Support\Permissions::EMAILS_INBOX)
-        <section class="panel mt-6">
-            <div class="flex items-center justify-between mb-4">
-                <div>
+        <section class="panel mt-6 min-w-0">
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="min-w-0">
                     <h3 class="text-lg font-semibold text-white">Email Threads</h3>
                     <p class="text-sm text-slate-400">Sent / Opened / Responded tracking for this contact.</p>
                 </div>
                 @can(\App\Support\Permissions::EMAILS_SEND)
                     @if ($contact->email)
-                        <a class="btn-secondary" href="{{ route('contacts.email.create', $contact) }}">Send email</a>
+                        <a class="btn-secondary shrink-0" href="{{ route('contacts.email.create', $contact) }}">Send email</a>
                     @endif
                 @endcan
             </div>
 
-            <x-data-table>
+            <x-data-table wide>
                 <thead>
                     <tr>
                         <th>Subject</th>
@@ -151,7 +159,7 @@
                 <tbody class="divide-y divide-slate-800">
                     @forelse ($contact->emailThreads as $thread)
                         <tr>
-                            <td class="font-medium text-white max-w-sm truncate">{{ $thread->subject }}</td>
+                            <td class="max-w-sm truncate font-medium text-white" title="{{ $thread->subject }}">{{ $thread->subject }}</td>
                             <td>
                                 <div class="flex flex-wrap gap-1 text-xs">
                                     <span @class(['rounded-full px-2 py-1 font-semibold', 'bg-emerald-500/15 text-emerald-200' => $thread->outbound_sent_count > 0, 'bg-slate-800 text-slate-500' => $thread->outbound_sent_count < 1])>Sent</span>
@@ -175,13 +183,13 @@
         </section>
     @endcan
 
-    <section class="panel mt-6">
-        <div class="flex items-center justify-between mb-4">
-            <div>
+    <section class="panel mt-6 min-w-0">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0">
                 <h3 class="text-lg font-semibold text-white">Activity Timeline</h3>
                 <p class="text-sm text-slate-400">Interactions and recorded responses in reverse chronological order.</p>
             </div>
-            <a class="btn-secondary" href="{{ route('interactions.create', ['contact_id' => $contact->id]) }}">Add interaction</a>
+            <a class="btn-secondary shrink-0" href="{{ route('interactions.create', ['contact_id' => $contact->id]) }}">Add interaction</a>
         </div>
 
         <x-data-table>
@@ -195,7 +203,7 @@
             <tbody class="divide-y divide-slate-800">
                 @forelse ($contact->activity_timeline as $item)
                     <tr>
-                        <td class="font-medium text-white whitespace-nowrap">{{ $item['title'] }}</td>
+                        <td class="whitespace-nowrap font-medium text-white">{{ $item['title'] }}</td>
                         <td class="max-w-xl truncate" title="{{ $item['description'] }}">{{ $item['description'] ?: '—' }}</td>
                         <td class="whitespace-nowrap text-slate-400">{{ $item['timestamp'] }}</td>
                     </tr>

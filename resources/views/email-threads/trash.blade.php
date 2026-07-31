@@ -4,8 +4,8 @@
             <p class="text-sm text-slate-400">Restore a thread, or permanently delete it. Permanent delete cannot be undone.</p>
             <a class="btn-secondary" href="{{ route('email-threads.index') }}">Back to inbox</a>
         </div>
-        <form method="get" class="mt-4 grid gap-3 md:grid-cols-4">
-            <input class="input mt-0 md:col-span-2" name="search" value="{{ request('search') }}" placeholder="Search contact, email, subject">
+        <form method="get" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <input class="input mt-0 sm:col-span-2" name="search" value="{{ request('search') }}" placeholder="Search contact, email, subject">
             <select class="input mt-0" name="per_page">
                 @foreach ([10, 20, 50, 100] as $size)
                     <option value="{{ $size }}" @selected((int) ($perPage ?? 20) === $size)>{{ $size }} / page</option>
@@ -32,7 +32,7 @@
         </form>
     </div>
 
-    <x-data-table>
+    <x-data-table wide>
         <thead>
             <tr>
                 <th class="w-10">

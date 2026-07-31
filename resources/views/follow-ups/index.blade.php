@@ -1,6 +1,6 @@
 <x-layouts.app title="Follow-ups | Sales Tracker" heading="Follow-ups" eyebrow="Reminders and next steps">
     <section class="panel mb-6">
-        <form method="get" class="grid gap-3 md:grid-cols-4">
+        <form method="get" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <select class="input mt-0" name="scope">
                 <option value="">All dates</option>
                 <option value="today" @selected(request('scope') === 'today')>Due today</option>
@@ -11,10 +11,12 @@
                 <option value="0" @selected(request('completed') === '0')>Open</option>
                 <option value="1" @selected(request('completed') === '1')>Completed</option>
             </select>
-            <button class="btn-primary" type="submit">Filter</button>
-            @can(\App\Support\Permissions::FOLLOW_UPS_CREATE)
-                <a class="btn-secondary" href="{{ route('follow-ups.create') }}">New follow-up</a>
-            @endcan
+            <div class="filter-actions sm:col-span-2 lg:col-span-2">
+                <button class="btn-primary" type="submit">Filter</button>
+                @can(\App\Support\Permissions::FOLLOW_UPS_CREATE)
+                    <a class="btn-secondary" href="{{ route('follow-ups.create') }}">New follow-up</a>
+                @endcan
+            </div>
         </form>
     </section>
 

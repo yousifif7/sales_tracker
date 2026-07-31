@@ -6,11 +6,15 @@
     body {
         @apply bg-slate-950 text-slate-100;
     }
+
+    html {
+        @apply overflow-x-hidden;
+    }
 }
 
 @layer components {
     .panel {
-        @apply rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-slate-950/30;
+        @apply rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-2xl shadow-slate-950/30 sm:rounded-3xl sm:p-6;
     }
 
     .btn-primary {
@@ -21,8 +25,18 @@
         @apply inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-600 hover:bg-slate-800;
     }
 
+    .page-actions {
+        @apply flex flex-wrap gap-2 sm:gap-3;
+    }
+
+    .page-actions > .btn-primary,
+    .page-actions > .btn-secondary {
+        @apply grow sm:grow-0;
+    }
+
     .input {
         @apply mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20;
+        color-scheme: dark;
     }
 
     .label {
@@ -30,24 +44,60 @@
     }
 
     .table-wrap {
-        @apply overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/70;
+        @apply relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 sm:rounded-3xl;
+    }
+
+    .table-scroll {
+        @apply overflow-x-auto overscroll-x-contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: rgb(51 65 85) transparent;
+    }
+
+    .table-scroll::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .table-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .table-scroll::-webkit-scrollbar-thumb {
+        background: rgb(51 65 85);
+        border-radius: 9999px;
+    }
+
+    .table-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgb(71 85 105);
     }
 
     .table {
-        @apply min-w-full divide-y divide-slate-800 text-left text-sm text-slate-300;
+        @apply w-full min-w-[44rem] border-collapse text-left text-sm text-slate-300;
+    }
+
+    .table.table-compact {
+        @apply min-w-[40rem];
+    }
+
+    .table.table-wide {
+        @apply min-w-[56rem];
     }
 
     .table th {
-        @apply bg-slate-900 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500;
+        @apply whitespace-nowrap bg-slate-900 px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 sm:px-4 sm:tracking-[0.2em];
     }
 
     .table td {
-        @apply px-4 py-4 align-top;
+        @apply px-3 py-3.5 align-top sm:px-4 sm:py-4;
+    }
+
+    .table tbody tr {
+        @apply border-t border-slate-800;
     }
 
     .table-compact th,
     .table-compact td {
-        @apply px-3 py-2.5;
+        @apply px-2.5 py-2.5 sm:px-3;
     }
 
     .table-compact th {
@@ -64,6 +114,16 @@
 
     .row-actions {
         @apply inline-flex flex-wrap items-center justify-end gap-x-3 gap-y-1;
+    }
+
+    .filter-actions {
+        @apply flex flex-wrap gap-2 sm:gap-3;
+    }
+
+    .filter-actions > .btn-primary,
+    .filter-actions > .btn-secondary,
+    .filter-actions > a {
+        @apply grow sm:grow-0;
     }
 
     .rich-editor {

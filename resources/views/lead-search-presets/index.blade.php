@@ -1,8 +1,8 @@
 <x-layouts.app title="AI Prompts | Sales Tracker" heading="AI Prompts" eyebrow="Lead search presets">
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <p class="text-sm text-slate-400">Edit the prompts used on the AI Lead Search screen.</p>
         @can(\App\Support\Permissions::LEAD_SEARCH_PRESETS_CREATE)
-            <a class="btn-primary" href="{{ route('lead-search-presets.create') }}">New prompt</a>
+            <a class="btn-primary w-full sm:w-auto" href="{{ route('lead-search-presets.create') }}">New prompt</a>
         @endcan
     </div>
 
