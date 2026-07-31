@@ -6,28 +6,49 @@ class HtmlContent
 {
     private const ALLOWED_TAGS = '<p><br><strong><b><em><i><u><a><ul><ol><li>';
 
+    /** Extra tags kept for inbound mail so client HTML still renders. */
+    private const INBOUND_ALLOWED_TAGS = '<p><br><strong><b><em><i><u><a><ul><ol><li><div><span><blockquote><h1><h2><h3><h4><h5><h6><table><thead><tbody><tr><th><td><hr><pre>';
+
     public static function sanitize(?string $html): string
     {
+        return self::sanitizeWithTags($html, self::ALLOWED_TAGS);
+    }
+
+    public static function sanitizeInbound(?string $html): string
+    {
+        return self::sanitizeWithTags($html, self::INBOUND_ALLOWED_TAGS);
+    }
+
+    private static function sanitizeWithTags(?string $html, string $allowedTags): string
+    {
         $html = html_entity_decode((string) $html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $html = strip_tags($html, self::ALLOWED_TAGS);
+        $html = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $html) ?? $html;
+        $html = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $html) ?? $html;
+        $html = strip_tags($html, $allowedTags);
 
-        // Keep only safe hrefs on anchors.
+        // Drop Gmail/client inline styles (white backgrounds, light text, etc.)
+        // and keep only safe hrefs on anchors.
         $html = preg_replace_callback(
-            '/<a\s+([^>]*?)>/i',
+            '/<([a-z0-9]+)(\s[^>]*)?>/i',
             function (array $matches): string {
-                $attrs = $matches[1];
-                $href = null;
+                $tag = strtolower($matches[1]);
+                $attrs = $matches[2] ?? '';
 
-                if (preg_match('/href\s*=\s*([\'"])(.*?)\1/i', $attrs, $hrefMatch)) {
-                    $candidate = trim($hrefMatch[2]);
-                    if (preg_match('/^(https?:\/\/|mailto:)/i', $candidate)) {
-                        $href = $candidate;
+                if ($tag === 'a') {
+                    $href = null;
+                    if (preg_match('/href\s*=\s*([\'"])(.*?)\1/i', $attrs, $hrefMatch)) {
+                        $candidate = trim($hrefMatch[2]);
+                        if (preg_match('/^(https?:\/\/|mailto:)/i', $candidate)) {
+                            $href = $candidate;
+                        }
                     }
+
+                    return $href
+                        ? '<a href="'.e($href).'" target="_blank" rel="noopener noreferrer">'
+                        : '<a>';
                 }
 
-                return $href
-                    ? '<a href="'.e($href).'" target="_blank" rel="noopener noreferrer">'
-                    : '<a>';
+                return '<'.$tag.'>';
             },
             $html
         ) ?? $html;

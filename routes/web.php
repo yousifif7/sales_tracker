@@ -49,6 +49,8 @@ Route::middleware('auth')->group(function (): void {
     Route::resource('lead-search-presets', LeadSearchPresetController::class)->except(['show']);
     Route::get('inbox', [EmailThreadController::class, 'index'])->name('email-threads.index');
     Route::get('inbox/trash', [EmailThreadController::class, 'trash'])->name('email-threads.trash');
+    Route::post('inbox/bulk-destroy', [EmailThreadController::class, 'bulkDestroy'])->name('email-threads.bulk-destroy');
+    Route::post('inbox/trash/bulk-force-destroy', [EmailThreadController::class, 'bulkForceDestroy'])->name('email-threads.bulk-force-destroy');
     Route::get('inbox/{emailThread}', [EmailThreadController::class, 'show'])->name('email-threads.show');
     Route::post('inbox/{emailThread}/reply', [EmailThreadController::class, 'reply'])->name('email-threads.reply');
     Route::delete('inbox/{emailThread}', [EmailThreadController::class, 'destroy'])->name('email-threads.destroy');

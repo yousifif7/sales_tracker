@@ -19,6 +19,7 @@ class EmailThread extends Model
         'subject',
         'status',
         'last_message_at',
+        'has_unread',
     ];
 
     protected function casts(): array
@@ -27,6 +28,7 @@ class EmailThread extends Model
             'status' => EmailThreadStatus::class,
             'last_message_at' => 'datetime',
             'deleted_at' => 'datetime',
+            'has_unread' => 'boolean',
         ];
     }
 

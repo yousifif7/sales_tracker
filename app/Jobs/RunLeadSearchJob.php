@@ -16,7 +16,7 @@ class RunLeadSearchJob implements ShouldQueue
 
     public int $tries = 3;
 
-    public int $timeout = 120;
+    public int $timeout = 300;
 
     public function __construct(
         public int $leadSearchQueryId,
@@ -27,6 +27,9 @@ class RunLeadSearchJob implements ShouldQueue
     {
         $leadSearchQuery = LeadSearchQuery::query()->findOrFail($this->leadSearchQueryId);
         $searchResult = $leadSearchService->search($leadSearchQuery->criteria);
+
+        // Extra safety net — service already excludes, but never re-import known contacts.
+        $searchResult['results'] = $leadSearchService->excludeExistingContacts($searchResult['results'] ?? []);
 
         $leadSearchQuery->update([
             'raw_results' => $searchResult,
@@ -39,16 +42,16 @@ class RunLeadSearchJob implements ShouldQueue
                 continue;
             }
 
-            $attributes = filled($lead['email'] ?? null)
-                ? ['email' => $lead['email']]
-                : ['name' => $name, 'company' => $lead['company'] ?? null];
+            if ($this->findExistingContact($lead, $name)) {
+                continue;
+            }
 
             $notes = collect([
                 filled($lead['role'] ?? null) ? 'Role: '.$lead['role'] : null,
                 'Imported from AI lead search #'.$leadSearchQuery->id,
             ])->filter()->implode("\n");
 
-            Contact::query()->updateOrCreate($attributes, [
+            Contact::query()->create([
                 'name' => $name,
                 'company' => $lead['company'] ?? null,
                 'email' => $lead['email'] ?? null,
@@ -61,5 +64,49 @@ class RunLeadSearchJob implements ShouldQueue
                 'notes' => $notes,
             ]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $lead
+     */
+    protected function findExistingContact(array $lead, string $name): ?Contact
+    {
+        if (filled($lead['email'] ?? null)) {
+            $existing = Contact::query()
+                ->whereRaw('LOWER(email) = ?', [strtolower((string) $lead['email'])])
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        if (filled($lead['linkedin_url'] ?? null)) {
+            $existing = Contact::query()
+                ->where('linkedin_url', $lead['linkedin_url'])
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        if (filled($lead['company'] ?? null)) {
+            $existing = Contact::query()
+                ->whereRaw('LOWER(company) = ?', [strtolower((string) $lead['company'])])
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        return Contact::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower($name)])
+            ->when(
+                filled($lead['company'] ?? null),
+                fn ($q) => $q->whereRaw('LOWER(company) = ?', [strtolower((string) $lead['company'])]),
+            )
+            ->first();
     }
 }

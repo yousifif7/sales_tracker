@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('direction')->default('outbound')->index();
             $table->text('content');
             $table->timestamp('sent_at')->nullable()->index();
-            $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
     }

@@ -2,7 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Models\Contact;
 use App\Services\LeadSearchService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -10,6 +12,8 @@ use Tests\TestCase;
 
 class LeadSearchServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_it_parses_strict_json_leads_from_openrouter(): void
     {
         config([
@@ -73,9 +77,9 @@ class LeadSearchServiceTest extends TestCase
                 && data_get($data, 'model') === 'openai/gpt-4o-mini'
                 && data_get($data, 'temperature') === 0
                 && data_get($data, 'tools.0.type') === 'openrouter:web_search'
-                && data_get($data, 'tools.0.parameters.max_uses') === 5
+                && data_get($data, 'tools.0.parameters.max_uses') === 8
                 && data_get($data, 'tools.0.parameters.search_context_size') === 'medium'
-                && data_get($data, 'max_tool_calls') === 5;
+                && data_get($data, 'max_tool_calls') === 8;
         });
     }
 
@@ -181,6 +185,8 @@ class LeadSearchServiceTest extends TestCase
             'openrouter.api_key' => 'test-key',
             'openrouter.model' => 'openai/gpt-4o-mini',
             'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.min_leads' => 1,
+            'openrouter.web_search.require_web_evidence' => false,
         ]);
 
         Http::fake([
@@ -241,7 +247,7 @@ class LeadSearchServiceTest extends TestCase
         $service = new LeadSearchService(app(Factory::class));
         $result = $service->search('UK security firms');
 
-        $this->assertCount(2, $result['results']);
+        $this->assertCount(1, $result['results']);
         $this->assertSame('Jordan Wiggins', $result['results'][0]['name']);
         $this->assertNull($result['results'][0]['email']);
         $this->assertNull($result['results'][0]['linkedin_url']);
@@ -249,8 +255,6 @@ class LeadSearchServiceTest extends TestCase
             'https://www.linkedin.com/company/milne-security-services',
             $result['results'][0]['social_links']['company_linkedin'],
         );
-        $this->assertSame('Michelle Dunn', $result['results'][1]['name']);
-        $this->assertNull($result['results'][1]['linkedin_url']);
     }
 
     public function test_it_rejects_invalid_json_payloads(): void
@@ -278,5 +282,332 @@ class LeadSearchServiceTest extends TestCase
 
         $service = new LeadSearchService(app(Factory::class));
         $service->search('broken response');
+    }
+
+    public function test_it_excludes_leads_already_in_crm(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => false,
+        ]);
+
+        Contact::query()->create([
+            'name' => 'David Foster',
+            'company' => 'Risk Secured Ltd',
+            'email' => 'david@risksecured.co.uk',
+            'source' => 'manual',
+            'status' => 'contacted',
+            'website' => 'https://www.risksecured.co.uk',
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                [
+                                    'name' => 'David Foster',
+                                    'role' => 'Director & Co-Owner',
+                                    'company' => 'Risk Secured Ltd',
+                                    'email' => null,
+                                    'website' => 'https://risksecured.co.uk',
+                                    'linkedin_url' => null,
+                                    'social_links' => [],
+                                    'source_url' => 'https://risksecured.co.uk/about',
+                                ],
+                                [
+                                    'name' => 'Sabia Kauser',
+                                    'role' => 'CEO',
+                                    'company' => 'Eagle Security Protection Ltd',
+                                    'email' => 'info@eaglesecurityprotection.co.uk',
+                                    'website' => 'https://eaglesecurityprotection.co.uk',
+                                    'linkedin_url' => null,
+                                    'social_links' => [],
+                                    'source_url' => 'https://eaglesecurityprotection.co.uk/about',
+                                ],
+                            ]),
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('UK security firms');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Sabia Kauser', $result['results'][0]['name']);
+
+        Http::assertSent(function (Request $request): bool {
+            $prompt = (string) data_get($request->data(), 'messages.1.content');
+
+            return str_contains($prompt, 'CRM exclude list')
+                && str_contains($prompt, 'risk secured')
+                && str_contains($prompt, 'risksecured.co.uk');
+        });
+    }
+
+    public function test_it_honors_max_from_criteria(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.max_leads' => 5,
+            'openrouter.web_search.require_web_evidence' => false,
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => '[]',
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $service->search('Find UK security firms. Strict JSON, max 10.');
+
+        Http::assertSent(function (Request $request): bool {
+            $prompt = (string) data_get($request->data(), 'messages.1.content');
+
+            return str_contains($prompt, 'Target 10')
+                && str_contains($prompt, 'Max 10 leads')
+                && str_contains($prompt, 'first AND last');
+        });
+    }
+
+    public function test_it_rejects_single_names_and_placeholder_people(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => false,
+            'openrouter.web_search.min_leads' => 1,
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                [
+                                    'name' => 'Bobby',
+                                    'role' => 'Director',
+                                    'company' => 'ALG Security Ltd',
+                                    'email' => 'info@algsecurity.co.uk',
+                                    'website' => 'https://www.algsecurity.co.uk/',
+                                    'source_url' => 'https://www.algsecurity.co.uk/',
+                                ],
+                                [
+                                    'name' => 'John Doe',
+                                    'role' => 'Managing Director',
+                                    'company' => 'JD Security Solutions Ltd',
+                                    'website' => 'https://www.jd-security.co.uk/',
+                                    'source_url' => 'https://www.jd-security.co.uk/',
+                                ],
+                                [
+                                    'name' => 'Spencer Martin',
+                                    'role' => 'Managing Director',
+                                    'company' => 'CSM Security',
+                                    'email' => 'info@csmsecurity.co.uk',
+                                    'website' => 'https://csmsecurity.co.uk',
+                                    'source_url' => 'https://csmsecurity.co.uk/meet-the-team/spencer-martin/',
+                                ],
+                            ]),
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('North Wales guarding firms max 5');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Spencer Martin', $result['results'][0]['name']);
+    }
+
+    public function test_it_runs_refill_pass_when_below_min_leads(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => true,
+            'openrouter.web_search.min_leads' => 2,
+            'openrouter.web_search.max_leads' => 5,
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::sequence()
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Spencer Martin',
+                                        'role' => 'Managing Director',
+                                        'company' => 'CSM Security',
+                                        'website' => 'https://csmsecurity.co.uk',
+                                        'source_url' => 'https://csmsecurity.co.uk/meet-the-team/spencer-martin/',
+                                    ],
+                                ]),
+                                'annotations' => [
+                                    [
+                                        'type' => 'url_citation',
+                                        'url_citation' => [
+                                            'url' => 'https://csmsecurity.co.uk/meet-the-team/spencer-martin/',
+                                            'content' => 'Spencer Martin Managing Director of CSM Security',
+                                        ],
+                                    ],
+                                    [
+                                        'type' => 'url_citation',
+                                        'url_citation' => [
+                                            'url' => 'https://castellsecurityltd.com/',
+                                            'content' => 'Castell Security Ltd North Wales manned guarding',
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200)
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Owain Davies',
+                                        'role' => 'Director',
+                                        'company' => 'Castell Security Ltd',
+                                        'website' => 'https://castellsecurityltd.com',
+                                        'source_url' => 'https://castellsecurityltd.com/about',
+                                    ],
+                                ]),
+                                'annotations' => [
+                                    [
+                                        'type' => 'url_citation',
+                                        'url_citation' => [
+                                            'url' => 'https://castellsecurityltd.com/about',
+                                            'content' => 'Owain Davies is Director at Castell Security Ltd',
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('North Wales guarding firms');
+
+        $this->assertCount(2, $result['results']);
+        $this->assertSame('Spencer Martin', $result['results'][0]['name']);
+        $this->assertSame('Owain Davies', $result['results'][1]['name']);
+        $this->assertArrayHasKey('refill', $result['raw_response']);
+    }
+
+    public function test_it_keeps_one_lead_per_company_preferring_md(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => false,
+            'openrouter.web_search.min_leads' => 1,
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                [
+                                    'name' => 'Kaled Miah',
+                                    'role' => 'Operations Director',
+                                    'company' => 'Region Security Guarding',
+                                    'website' => 'https://regionsecurityguarding.co.uk/',
+                                    'source_url' => 'https://regionsecurityguarding.co.uk/meet-the-team/',
+                                ],
+                                [
+                                    'name' => 'Zachariah Islam',
+                                    'role' => 'Managing Director',
+                                    'company' => 'Region Security Guarding',
+                                    'website' => 'https://regionsecurityguarding.co.uk/',
+                                    'source_url' => 'https://regionsecurityguarding.co.uk/about-us/',
+                                ],
+                            ]),
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('North Wales firms max 5');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Zachariah Islam', $result['results'][0]['name']);
+    }
+
+    public function test_it_accepts_full_name_alias_and_cited_source_host(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => true,
+            'openrouter.web_search.min_leads' => 1,
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                [
+                                    'full_name' => 'Andy Butterfield',
+                                    'role' => 'Managing Director',
+                                    'company' => 'Corvus Security Ltd',
+                                    'public_email' => null,
+                                    'website' => 'https://www.corvussecurity.co.uk',
+                                    'source_url' => 'https://www.corvus.co.uk/contact-us/',
+                                ],
+                            ]),
+                            'annotations' => [
+                                [
+                                    'type' => 'url_citation',
+                                    'url_citation' => [
+                                        'url' => 'https://www.corvus.co.uk/contact-us/',
+                                        'content' => 'Managing Director, Andy Butterfield Ba(Hons)',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('North Wales firms max 5');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Andy Butterfield', $result['results'][0]['name']);
     }
 }

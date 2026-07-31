@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EmailThreadStatus;
 use App\Http\Requests\ReplyEmailThreadRequest;
 use App\Models\EmailThread;
 use App\Services\OutreachEmailService;
@@ -18,6 +19,8 @@ class EmailThreadController extends Controller
     {
         $this->authorizePermission(Permissions::EMAILS_INBOX);
 
+        $perPage = $this->resolvePerPage($request);
+
         $threads = EmailThread::query()
             ->with(['contact', 'latestMessage'])
             ->withCount([
@@ -26,6 +29,15 @@ class EmailThreadController extends Controller
                 'messages as inbound_count' => fn ($q) => $q->where('direction', 'inbound'),
             ])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
+            ->when($request->boolean('unread'), fn ($q) => $q->where('has_unread', true))
+            ->when($request->boolean('opened'), function ($q): void {
+                $q->whereHas(
+                    'messages',
+                    fn ($messageQuery) => $messageQuery
+                        ->where('direction', 'outbound')
+                        ->where(fn ($inner) => $inner->whereNotNull('opened_at')->orWhere('open_count', '>', 0)),
+                );
+            })
             ->when($request->filled('search'), function ($q) use ($request): void {
                 $search = '%'.$request->string('search').'%';
                 $q->where(function ($nested) use ($search): void {
@@ -38,18 +50,22 @@ class EmailThreadController extends Controller
                 });
             })
             ->latest('last_message_at')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('email-threads.index', [
             'threads' => $threads,
             'trashedCount' => EmailThread::onlyTrashed()->count(),
+            'stats' => $this->inboxStats(),
+            'perPage' => $perPage,
         ]);
     }
 
     public function trash(Request $request): View
     {
         $this->authorizePermission(Permissions::EMAILS_INBOX);
+
+        $perPage = $this->resolvePerPage($request);
 
         $threads = EmailThread::onlyTrashed()
             ->with(['contact', 'latestMessage'])
@@ -70,11 +86,12 @@ class EmailThreadController extends Controller
                 });
             })
             ->latest('deleted_at')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
         return view('email-threads.trash', [
             'threads' => $threads,
+            'perPage' => $perPage,
         ]);
     }
 
@@ -82,10 +99,14 @@ class EmailThreadController extends Controller
     {
         $this->authorizePermission(Permissions::EMAILS_INBOX);
 
+        if ($emailThread->has_unread) {
+            $emailThread->update(['has_unread' => false]);
+        }
+
         $emailThread->load([
             'contact',
             'campaign',
-            'messages' => fn ($q) => $q->orderBy('created_at')->orderBy('id'),
+            'messages' => fn ($q) => $q->orderByRaw('COALESCE(sent_at, received_at, created_at)')->orderBy('id'),
         ]);
 
         $replySubject = str_starts_with(strtolower($emailThread->subject), 're:')
@@ -150,6 +171,28 @@ class EmailThreadController extends Controller
             ->with('status', 'Thread moved to trash.');
     }
 
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $this->authorizePermission(Permissions::EMAILS_INBOX);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'distinct'],
+        ]);
+
+        $ids = $validated['ids'];
+
+        $count = EmailThread::query()->whereIn('id', $ids)->count();
+
+        EmailThread::query()->whereIn('id', $ids)->delete();
+
+        return redirect()
+            ->route('email-threads.index')
+            ->with('status', $count === 1
+                ? '1 thread moved to trash.'
+                : "{$count} threads moved to trash.");
+    }
+
     public function restore(int $emailThread): RedirectResponse
     {
         $this->authorizePermission(Permissions::EMAILS_INBOX);
@@ -172,5 +215,62 @@ class EmailThreadController extends Controller
         return redirect()
             ->route('email-threads.trash')
             ->with('status', 'Thread permanently deleted.');
+    }
+
+    public function bulkForceDestroy(Request $request): RedirectResponse
+    {
+        $this->authorizePermission(Permissions::EMAILS_INBOX);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'distinct'],
+        ]);
+
+        $threads = EmailThread::onlyTrashed()
+            ->whereIn('id', $validated['ids'])
+            ->get();
+
+        $count = $threads->count();
+
+        foreach ($threads as $thread) {
+            $thread->forceDelete();
+        }
+
+        return redirect()
+            ->route('email-threads.trash')
+            ->with('status', $count === 1
+                ? '1 thread permanently deleted.'
+                : "{$count} threads permanently deleted.");
+    }
+
+    /**
+     * @return array{total: int, unread: int, awaiting_reply: int, responded: int, opened: int}
+     */
+    protected function inboxStats(): array
+    {
+        return [
+            'total' => EmailThread::query()->count(),
+            'unread' => EmailThread::query()->where('has_unread', true)->count(),
+            'awaiting_reply' => EmailThread::query()
+                ->where('status', EmailThreadStatus::AwaitingReply->value)
+                ->count(),
+            'responded' => EmailThread::query()
+                ->where('status', EmailThreadStatus::Responded->value)
+                ->count(),
+            'opened' => EmailThread::query()
+                ->whereHas(
+                    'messages',
+                    fn ($q) => $q->where('direction', 'outbound')
+                        ->where(fn ($inner) => $inner->whereNotNull('opened_at')->orWhere('open_count', '>', 0)),
+                )
+                ->count(),
+        ];
+    }
+
+    protected function resolvePerPage(Request $request): int
+    {
+        $perPage = (int) $request->input('per_page', 20);
+
+        return in_array($perPage, [10, 20, 50, 100], true) ? $perPage : 20;
     }
 }

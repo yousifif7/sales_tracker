@@ -106,6 +106,21 @@
         @apply text-sky-300 underline;
     }
 
+    .prose-email {
+        @apply text-slate-200;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .prose-email :where(*) {
+        color: inherit !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        border-color: rgb(51 65 85) !important;
+        max-width: 100% !important;
+        box-shadow: none !important;
+    }
+
     .prose-email p {
         @apply mb-3;
     }
@@ -119,6 +134,23 @@
     }
 
     .prose-email a {
-        @apply text-sky-300 underline;
+        @apply underline;
+        color: #7dd3fc !important;
+    }
+
+    .prose-email blockquote {
+        @apply my-3 border-l-2 pl-3;
+        border-color: #475569 !important;
+        color: #94a3b8 !important;
+    }
+
+    .prose-email table {
+        @apply mb-3 w-full border-collapse text-left;
+    }
+
+    .prose-email td,
+    .prose-email th {
+        @apply border px-2 py-1;
+        border-color: #334155 !important;
     }
 }

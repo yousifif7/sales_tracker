@@ -9,4 +9,6 @@ return [
     'password' => env('IMAP_PASSWORD', env('MAIL_PASSWORD')),
     'folder' => env('IMAP_FOLDER', 'INBOX'),
     'mark_as_read' => filter_var(env('IMAP_MARK_AS_READ', false), FILTER_VALIDATE_BOOL),
+    // How many recent INBOX messages to scan per sync (newest first).
+    'sync_limit' => (int) env('IMAP_SYNC_LIMIT', 100),
 ];

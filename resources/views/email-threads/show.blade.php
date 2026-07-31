@@ -19,6 +19,9 @@
                     @if ($thread->hasInboundReply())
                         <span class="rounded-full bg-amber-500/15 px-3 py-1 font-semibold text-amber-200">Responded</span>
                     @endif
+                    @if ($thread->has_unread)
+                        <span class="rounded-full bg-sky-500/20 px-3 py-1 font-semibold text-sky-100">New reply</span>
+                    @endif
                 </div>
             </div>
             <div class="flex flex-wrap gap-3">
@@ -73,10 +76,16 @@
                 </div>
 
                 <div class="prose-email mt-4 text-sm text-slate-200">
-                    @if (filled($message->body_html))
-                        {!! $message->body_html !!}
-                    @else
+                    @php
+                        $htmlVisible = filled($message->body_html) && trim(strip_tags((string) $message->body_html)) !== '';
+                        $textVisible = filled($message->body_text);
+                    @endphp
+                    @if ($htmlVisible)
+                        {!! \App\Support\HtmlContent::sanitizeInbound($message->body_html) !!}
+                    @elseif ($textVisible)
                         <pre class="whitespace-pre-wrap font-sans text-slate-300">{{ $message->body_text }}</pre>
+                    @else
+                        <p class="text-slate-500 italic">No message body was captured for this email. It will be backfilled on the next inbox sync if still available on the mail server.</p>
                     @endif
                 </div>
             </article>

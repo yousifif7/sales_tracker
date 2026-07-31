@@ -18,14 +18,16 @@ return [
     */
     'web_search' => [
         'engine' => env('OPENROUTER_WEB_SEARCH_ENGINE', 'auto'),
-        'max_results' => (int) env('OPENROUTER_WEB_SEARCH_MAX_RESULTS', 4),
-        'max_uses' => (int) env('OPENROUTER_WEB_SEARCH_MAX_USES', 5),
-        'max_total_results' => (int) env('OPENROUTER_WEB_SEARCH_MAX_TOTAL_RESULTS', 16),
-        'max_tool_calls' => (int) env('OPENROUTER_WEB_SEARCH_MAX_TOOL_CALLS', 5),
+        'max_results' => (int) env('OPENROUTER_WEB_SEARCH_MAX_RESULTS', 6),
+        'max_uses' => (int) env('OPENROUTER_WEB_SEARCH_MAX_USES', 8),
+        'max_total_results' => (int) env('OPENROUTER_WEB_SEARCH_MAX_TOTAL_RESULTS', 30),
+        'max_tool_calls' => (int) env('OPENROUTER_WEB_SEARCH_MAX_TOOL_CALLS', 8),
+        'refill_max_uses' => (int) env('OPENROUTER_WEB_SEARCH_REFILL_MAX_USES', 6),
         // medium ≈ 15k chars/result on Exa; max_characters caps actual injected text.
         'search_context_size' => env('OPENROUTER_WEB_SEARCH_CONTEXT_SIZE', 'medium'),
-        'max_characters' => (int) env('OPENROUTER_WEB_SEARCH_MAX_CHARACTERS', 2200),
-        'max_leads' => (int) env('OPENROUTER_LEAD_SEARCH_MAX_LEADS', 5),
+        'max_characters' => (int) env('OPENROUTER_WEB_SEARCH_MAX_CHARACTERS', 2800),
+        'max_leads' => (int) env('OPENROUTER_LEAD_SEARCH_MAX_LEADS', 8),
+        'min_leads' => (int) env('OPENROUTER_LEAD_SEARCH_MIN_LEADS', 5),
         // Drop leads whose company/person is not evidenced in web-search citations.
         'require_web_evidence' => filter_var(
             env('OPENROUTER_REQUIRE_WEB_EVIDENCE', true),

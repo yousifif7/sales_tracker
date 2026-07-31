@@ -32,10 +32,15 @@
         .rich-surface ul { margin: 0 0 0.75rem; padding-left: 1.5rem; list-style: disc; }
         .rich-surface ol { margin: 0 0 0.75rem; padding-left: 1.5rem; list-style: decimal; }
         .rich-surface a { color: #7dd3fc; text-decoration: underline; }
+        .prose-email { color: #e2e8f0; overflow-wrap: anywhere; word-break: break-word; }
+        .prose-email * { color: inherit !important; background: transparent !important; background-color: transparent !important; border-color: #334155 !important; max-width: 100% !important; box-shadow: none !important; }
         .prose-email p { margin: 0 0 0.75rem; }
         .prose-email ul { margin: 0 0 0.75rem; padding-left: 1.5rem; list-style: disc; }
         .prose-email ol { margin: 0 0 0.75rem; padding-left: 1.5rem; list-style: decimal; }
-        .prose-email a { color: #7dd3fc; text-decoration: underline; }
+        .prose-email a { color: #7dd3fc !important; text-decoration: underline; }
+        .prose-email blockquote { margin: 0.75rem 0; padding-left: 0.75rem; border-left: 2px solid #475569; color: #94a3b8 !important; }
+        .prose-email table { width: 100%; border-collapse: collapse; margin: 0 0 0.75rem; }
+        .prose-email td, .prose-email th { border: 1px solid #334155; padding: 0.25rem 0.5rem; }
     </style>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
