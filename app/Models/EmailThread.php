@@ -52,6 +52,11 @@ class EmailThread extends Model
         return $this->hasOne(EmailMessage::class)->latestOfMany();
     }
 
+    public function firstMessage(): HasOne
+    {
+        return $this->hasOne(EmailMessage::class)->oldestOfMany();
+    }
+
     public function hasBeenOpened(): bool
     {
         return $this->messages()

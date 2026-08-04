@@ -43,4 +43,26 @@ class HtmlContentTest extends TestCase
         $this->assertStringContainsString('Hello', $sanitized);
         $this->assertStringContainsString('href="https://example.com"', $sanitized);
     }
+
+    public function test_sanitize_inbound_keeps_safe_layout_attributes_and_images(): void
+    {
+        $html = '<table width="600" cellpadding="0"><tr><td colspan="2" align="left"><img src="https://example.com/logo.png" width="120" alt="Logo"></td></tr></table>';
+
+        $sanitized = HtmlContent::sanitizeInbound($html);
+
+        $this->assertStringContainsString('<table width="600" cellpadding="0">', $sanitized);
+        $this->assertMatchesRegularExpression('/<td[^>]*colspan="2"[^>]*align="left"|<td[^>]*align="left"[^>]*colspan="2"/', $sanitized);
+        $this->assertStringContainsString('<img src="https://example.com/logo.png" alt="Logo" width="120">', $sanitized);
+    }
+
+    public function test_sanitize_inbound_drops_unsafe_image_sources(): void
+    {
+        $html = '<img src="cid:logo"><img src="javascript:alert(1)"><img src="https://example.com/logo.png">';
+
+        $sanitized = HtmlContent::sanitizeInbound($html);
+
+        $this->assertStringNotContainsString('cid:logo', $sanitized);
+        $this->assertStringNotContainsString('javascript:alert(1)', $sanitized);
+        $this->assertStringContainsString('https://example.com/logo.png', $sanitized);
+    }
 }

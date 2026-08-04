@@ -1,26 +1,26 @@
 <x-layouts.app title="Inbox | Sales Tracker" heading="Inbox" eyebrow="Email threads">
     @php
-        $hasActiveFilters = request()->hasAny(['status', 'unread', 'opened', 'search', 'date_from', 'date_to']);
+        $hasActiveFilters = request()->hasAny(['status', 'unread', 'responded', 'opened', 'search', 'date_from', 'date_to', 'created_from', 'created_to']);
     @endphp
 
     <div class="mb-4 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
-        <a href="{{ route('email-threads.index') }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => ! $hasActiveFilters])>
+        <a href="{{ route('email-threads.index', ['reset' => 1]) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => ! $hasActiveFilters])>
             <p class="text-xs text-slate-400">Total threads</p>
             <p class="mt-0.5 text-lg font-semibold text-white">{{ $stats['total'] }}</p>
         </a>
-        <a href="{{ route('email-threads.index', ['unread' => 1]) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => request('unread') === '1' && ! request()->hasAny(['status', 'opened', 'search', 'date_from', 'date_to'])])>
+        <a href="{{ route('email-threads.index', ['unread' => 1]) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => request('unread') === '1' && ! request()->hasAny(['status', 'responded', 'opened', 'search', 'date_from', 'date_to', 'created_from', 'created_to'])])>
             <p class="text-xs text-slate-400">Unread replies</p>
             <p class="mt-0.5 text-lg font-semibold text-sky-300">{{ $stats['unread'] }}</p>
         </a>
-        <a href="{{ route('email-threads.index', ['status' => 'awaiting_reply']) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => request('status') === 'awaiting_reply' && ! request()->hasAny(['unread', 'opened', 'search', 'date_from', 'date_to'])])>
+        <a href="{{ route('email-threads.index', ['status' => 'awaiting_reply']) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => request('status') === 'awaiting_reply' && ! request()->hasAny(['unread', 'responded', 'opened', 'search', 'date_from', 'date_to', 'created_from', 'created_to'])])>
             <p class="text-xs text-slate-400">Awaiting reply</p>
             <p class="mt-0.5 text-lg font-semibold text-white">{{ $stats['awaiting_reply'] }}</p>
         </a>
-        <a href="{{ route('email-threads.index', ['status' => 'responded']) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => request('status') === 'responded' && ! request()->hasAny(['unread', 'opened', 'search', 'date_from', 'date_to'])])>
+        <a href="{{ route('email-threads.index', ['responded' => 1]) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => request('responded') === '1' && ! request()->hasAny(['status', 'unread', 'opened', 'search', 'date_from', 'date_to', 'created_from', 'created_to'])])>
             <p class="text-xs text-slate-400">Responded</p>
             <p class="mt-0.5 text-lg font-semibold text-amber-200">{{ $stats['responded'] }}</p>
         </a>
-        <a href="{{ route('email-threads.index', ['opened' => 1]) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => request('opened') === '1' && ! request()->hasAny(['status', 'unread', 'search', 'date_from', 'date_to'])])>
+        <a href="{{ route('email-threads.index', ['opened' => 1]) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => request('opened') === '1' && ! request()->hasAny(['status', 'unread', 'responded', 'search', 'date_from', 'date_to', 'created_from', 'created_to'])])>
             <p class="text-xs text-slate-400">Opened by client</p>
             <p class="mt-0.5 text-lg font-semibold text-emerald-200">{{ $stats['opened'] }}</p>
         </a>
@@ -77,7 +77,29 @@
                 </div>
 
                 <div>
-                    <label class="label" for="inbox-date-from">From date</label>
+                    <label class="label" for="inbox-created-from">Thread created from</label>
+                    <input
+                        id="inbox-created-from"
+                        class="input"
+                        type="date"
+                        name="created_from"
+                        value="{{ $createdFrom ?? request('created_from') }}"
+                    >
+                </div>
+
+                <div>
+                    <label class="label" for="inbox-created-to">Thread created to</label>
+                    <input
+                        id="inbox-created-to"
+                        class="input"
+                        type="date"
+                        name="created_to"
+                        value="{{ $createdTo ?? request('created_to') }}"
+                    >
+                </div>
+
+                <div>
+                    <label class="label" for="inbox-date-from">Last message from</label>
                     <input
                         id="inbox-date-from"
                         class="input"
@@ -88,7 +110,7 @@
                 </div>
 
                 <div>
-                    <label class="label" for="inbox-date-to">To date</label>
+                    <label class="label" for="inbox-date-to">Last message to</label>
                     <input
                         id="inbox-date-to"
                         class="input"
@@ -110,7 +132,7 @@
 
             <div class="filter-actions border-t border-slate-800 pt-4">
                 <button class="btn-primary" type="submit">Apply filters</button>
-                <a class="btn-secondary" href="{{ route('email-threads.index') }}">Reset</a>
+                <a class="btn-secondary" href="{{ route('email-threads.index', ['reset' => 1]) }}">Reset</a>
             </div>
         </form>
     </section>
@@ -141,6 +163,8 @@
                 <th>Contact</th>
                 <th>Company</th>
                 <th>Subject</th>
+                <th>First message</th>
+                <th>Emails</th>
                 <th>Tracking</th>
                 <th>Status</th>
                 <th>Last message</th>
@@ -149,67 +173,85 @@
         </thead>
         <tbody class="divide-y divide-slate-800" id="inbox-rows">
             @forelse ($threads as $thread)
+                @php
+                    $messageCount = (int) $thread->messages_count;
+                    $replyCount = max(0, $messageCount - 1);
+                @endphp
                 <tr @class(['bg-sky-500/5' => $thread->has_unread])>
                     <td>
                         <input type="checkbox" form="inbox-bulk-form" name="ids[]" value="{{ $thread->id }}" class="inbox-row-check rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500/40">
                     </td>
-                        <td>
-                            <div class="flex items-start gap-2">
-                                @if ($thread->has_unread)
-                                    <span class="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-sky-400" title="New reply"></span>
-                                @endif
-                                <div>
-                                    <p @class(['font-medium text-white', 'font-semibold' => $thread->has_unread])>{{ $thread->contact?->name ?: '—' }}</p>
-                                    <p class="text-xs text-slate-500">{{ $thread->contact?->email }}</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="max-w-[12rem] truncate" title="{{ $thread->contact?->company }}">
-                            {{ $thread->contact?->company ?: '—' }}
-                        </td>
-                        <td class="max-w-sm truncate" title="{{ $thread->subject }}">
+                    <td>
+                        <div class="flex items-start gap-2">
                             @if ($thread->has_unread)
-                                <span class="mr-1 rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-200">New</span>
+                                <span class="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-sky-400" title="New reply"></span>
                             @endif
-                            {{ $thread->subject }}
-                        </td>
-                        <td>
-                            <div class="flex flex-wrap gap-1 text-xs">
-                                <span @class([
-                                    'rounded-full px-2 py-1 font-semibold',
-                                    'bg-emerald-500/15 text-emerald-200' => $thread->outbound_sent_count > 0,
-                                    'bg-slate-800 text-slate-500' => $thread->outbound_sent_count < 1,
-                                ])>Sent</span>
-                                <span @class([
-                                    'rounded-full px-2 py-1 font-semibold',
-                                    'bg-sky-500/15 text-sky-200' => $thread->opened_count > 0,
-                                    'bg-slate-800 text-slate-500' => $thread->opened_count < 1,
-                                ])>Opened</span>
-                                <span @class([
-                                    'rounded-full px-2 py-1 font-semibold',
-                                    'bg-amber-500/15 text-amber-200' => $thread->inbound_count > 0,
-                                    'bg-slate-800 text-slate-500' => $thread->inbound_count < 1,
-                                ])>Responded</span>
+                            <div>
+                                <p @class(['font-medium text-white', 'font-semibold' => $thread->has_unread])>{{ $thread->contact?->name ?: '—' }}</p>
+                                <p class="text-xs text-slate-500">{{ $thread->contact?->email }}</p>
                             </div>
-                        </td>
-                        <td>{{ $thread->status->label() }}</td>
-                        <td class="whitespace-nowrap">{{ optional($thread->last_message_at)->format('M d, H:i') ?: '—' }}</td>
-                        <x-row-actions>
-                            <a class="link-action" href="{{ route('email-threads.show', $thread) }}">View</a>
-                            <x-delete-action
-                                :action="route('email-threads.destroy', $thread)"
-                                confirm="Move this thread to trash?"
-                                label="Trash"
-                            />
-                        </x-row-actions>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="8" class="text-center text-slate-500">No email threads yet. Send an outreach email to start one.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </x-data-table>
+                        </div>
+                    </td>
+                    <td class="max-w-[12rem] truncate" title="{{ $thread->contact?->company }}">
+                        {{ $thread->contact?->company ?: '—' }}
+                    </td>
+                    <td class="max-w-sm truncate" title="{{ $thread->subject }}">
+                        @if ($thread->has_unread)
+                            <span class="mr-1 rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-200">New</span>
+                        @endif
+                        {{ $thread->subject }}
+                    </td>
+                    <td class="whitespace-nowrap">
+                        <p class="text-white">{{ optional($thread->created_at)->format('M d, Y') ?: '—' }}</p>
+                        <p class="text-xs text-slate-500">{{ optional($thread->created_at)->format('H:i') ?: '' }}</p>
+                    </td>
+                    <td class="whitespace-nowrap">
+                        <p class="font-medium text-white">{{ $messageCount }} {{ $messageCount === 1 ? 'email' : 'emails' }}</p>
+                        <p @class([
+                            'text-xs',
+                            'text-amber-200' => $replyCount > 0,
+                            'text-slate-500' => $replyCount === 0,
+                        ])>
+                            {{ $replyCount }} {{ $replyCount === 1 ? 'reply' : 'replies' }}
+                        </p>
+                    </td>
+                    <td>
+                        <div class="flex flex-wrap gap-1 text-xs">
+                            <span @class([
+                                'rounded-full px-2 py-1 font-semibold',
+                                'bg-emerald-500/15 text-emerald-200' => $thread->outbound_sent_count > 0,
+                                'bg-slate-800 text-slate-500' => $thread->outbound_sent_count < 1,
+                            ])>Sent</span>
+                            <span @class([
+                                'rounded-full px-2 py-1 font-semibold',
+                                'bg-sky-500/15 text-sky-200' => $thread->opened_count > 0,
+                                'bg-slate-800 text-slate-500' => $thread->opened_count < 1,
+                            ])>Opened</span>
+                            <span @class([
+                                'rounded-full px-2 py-1 font-semibold',
+                                'bg-amber-500/15 text-amber-200' => $thread->inbound_count > 0,
+                                'bg-slate-800 text-slate-500' => $thread->inbound_count < 1,
+                            ])>Responded</span>
+                        </div>
+                    </td>
+                    <td>{{ $thread->status->label() }}</td>
+                    <td class="whitespace-nowrap">{{ optional($thread->last_message_at)->format('M d, H:i') ?: '—' }}</td>
+                    <x-row-actions>
+                        <a class="link-action" href="{{ route('email-threads.show', $thread) }}">View</a>
+                        <x-delete-action
+                            :action="route('email-threads.destroy', $thread)"
+                            confirm="Move this thread to trash?"
+                            label="Trash"
+                        />
+                    </x-row-actions>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="10" class="text-center text-slate-500">No email threads yet. Send an outreach email to start one.</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </x-data-table>
 
     <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-slate-500">

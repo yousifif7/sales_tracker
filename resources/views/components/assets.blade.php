@@ -31,7 +31,7 @@
         .table-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
         .table { width: 100%; min-width: 44rem; border-collapse: collapse; text-align: left; font-size: 0.875rem; color: #cbd5e1; }
         .table.table-compact { min-width: 40rem; }
-        .table.table-wide { min-width: 56rem; }
+        .table.table-wide { min-width: 72rem; }
         .table th { white-space: nowrap; background: #0f172a; padding: 0.75rem 0.75rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #64748b; }
         .table td { padding: 0.875rem 0.75rem; vertical-align: top; border-top: 1px solid #1e293b; }
         @media (min-width: 640px) {
@@ -64,14 +64,37 @@
         .rich-surface ol { margin: 0 0 0.75rem; padding-left: 1.5rem; list-style: decimal; }
         .rich-surface a { color: #7dd3fc; text-decoration: underline; }
         .prose-email { color: #e2e8f0; overflow-wrap: anywhere; word-break: break-word; }
-        .prose-email * { color: inherit !important; background: transparent !important; background-color: transparent !important; border-color: #334155 !important; max-width: 100% !important; box-shadow: none !important; }
+        .prose-email * { color: inherit !important; background: transparent !important; background-color: transparent !important; max-width: 100% !important; box-shadow: none !important; }
         .prose-email p { margin: 0 0 0.75rem; }
         .prose-email ul { margin: 0 0 0.75rem; padding-left: 1.5rem; list-style: disc; }
         .prose-email ol { margin: 0 0 0.75rem; padding-left: 1.5rem; list-style: decimal; }
         .prose-email a { color: #7dd3fc !important; text-decoration: underline; }
         .prose-email blockquote { margin: 0.75rem 0; padding-left: 0.75rem; border-left: 2px solid #475569; color: #94a3b8 !important; }
-        .prose-email table { width: 100%; border-collapse: collapse; margin: 0 0 0.75rem; }
-        .prose-email td, .prose-email th { border: 1px solid #334155; padding: 0.25rem 0.5rem; }
+        .prose-email table { max-width: 100%; margin: 0 0 0.75rem; text-align: left; }
+        .prose-email td, .prose-email th { vertical-align: top; }
+        .prose-email img { display: inline-block; height: auto; max-width: 100%; vertical-align: middle; }
+        [data-sidebar-rail] { width: 18rem; transition: width 0.2s ease; }
+        [data-sidebar-rail].sidebar-peek,
+        [data-sidebar-rail]:not(.sidebar-collapsed) { z-index: 50; }
+        [data-sidebar-rail].sidebar-collapsed { width: 5rem; }
+        [data-sidebar-rail] [data-desktop-sidebar] { position: sticky; top: 0; height: 100vh; width: 18rem; background-color: rgb(2 6 23); }
+        [data-sidebar-rail].sidebar-collapsed [data-desktop-sidebar] { position: absolute; top: 0; bottom: 0; left: 0; z-index: 30; width: 5rem; padding-left: 0.75rem; padding-right: 0.75rem; box-shadow: none; overflow-y: auto; }
+        [data-sidebar-rail].sidebar-collapsed.sidebar-peek [data-desktop-sidebar] { width: 18rem; padding-left: 1.5rem; padding-right: 1.5rem; border-right-color: rgb(51 65 85); border-top-right-radius: 1.5rem; border-bottom-right-radius: 1.5rem; box-shadow: 16px 0 30px -18px rgba(2, 6, 23, 0.9); }
+        [data-sidebar-rail].sidebar-collapsed .sidebar-brand,
+        [data-sidebar-rail].sidebar-collapsed .sidebar-nav-label,
+        [data-sidebar-rail].sidebar-collapsed .sidebar-user-name,
+        [data-sidebar-rail].sidebar-collapsed .sidebar-user-role,
+        [data-sidebar-rail].sidebar-collapsed .sidebar-logout { display: none; }
+        [data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-brand { display: block; }
+        [data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-nav-label,
+        [data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-user-name,
+        [data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-user-role,
+        [data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-logout { display: block; }
+        [data-sidebar-rail].sidebar-collapsed .sidebar-header { justify-content: center; }
+        [data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-header { justify-content: space-between; }
+        [data-sidebar-rail].sidebar-collapsed .sidebar-nav-link { justify-content: center; padding-left: 0.5rem; padding-right: 0.5rem; }
+        [data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-nav-link { justify-content: flex-start; padding-left: 1rem; padding-right: 1rem; }
+        [data-sidebar-rail].sidebar-collapsed .sidebar-toggle-icon { transform: rotate(180deg); }
     </style>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -94,6 +117,30 @@
                 navLinks.forEach(function (link) {
                     link.addEventListener('click', function () { setOpen(false); });
                 });
+            }
+
+            var sidebarRail = document.querySelector('[data-sidebar-rail]');
+            var sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+            var sidebarStorageKey = 'crm-sidebar-collapsed';
+            if (sidebarRail && sidebarToggle) {
+                var setCollapsed = function (collapsed) {
+                    sidebarRail.classList.toggle('sidebar-collapsed', collapsed);
+                    sidebarRail.classList.remove('sidebar-peek');
+                    sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                    sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+                    sidebarToggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+                    window.localStorage.setItem(sidebarStorageKey, collapsed ? '1' : '0');
+                };
+                setCollapsed(window.localStorage.getItem(sidebarStorageKey) === '1');
+                sidebarToggle.addEventListener('click', function () {
+                    setCollapsed(!sidebarRail.classList.contains('sidebar-collapsed'));
+                });
+                var setPeek = function (enabled) {
+                    var canPeek = sidebarRail.classList.contains('sidebar-collapsed');
+                    sidebarRail.classList.toggle('sidebar-peek', canPeek && enabled);
+                };
+                sidebarRail.addEventListener('mouseenter', function () { setPeek(true); });
+                sidebarRail.addEventListener('mouseleave', function () { setPeek(false); });
             }
 
             document.querySelectorAll('[data-rich-editor]').forEach(function (root) {

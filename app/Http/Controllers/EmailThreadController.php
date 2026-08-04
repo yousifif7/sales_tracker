@@ -16,23 +16,54 @@ use Throwable;
 
 class EmailThreadController extends Controller
 {
-    public function index(Request $request): View
+    private const INBOX_FILTER_KEYS = [
+        'search',
+        'status',
+        'opened',
+        'unread',
+        'responded',
+        'date_from',
+        'date_to',
+        'created_from',
+        'created_to',
+        'per_page',
+    ];
+
+    private const INBOX_FILTERS_SESSION_KEY = 'inbox_filters';
+
+    public function index(Request $request): View|RedirectResponse
     {
         $this->authorizePermission(Permissions::EMAILS_INBOX);
+
+        if ($request->boolean('reset')) {
+            $request->session()->forget(self::INBOX_FILTERS_SESSION_KEY);
+
+            return redirect()->route('email-threads.index');
+        }
+
+        if ($redirect = $this->redirectToRememberedInboxFilters($request)) {
+            return $redirect;
+        }
+
+        $this->rememberInboxFilters($request);
 
         $perPage = $this->resolvePerPage($request);
         $dateFrom = $this->resolveDateFilter($request->input('date_from'));
         $dateTo = $this->resolveDateFilter($request->input('date_to'));
+        $createdFrom = $this->resolveDateFilter($request->input('created_from'));
+        $createdTo = $this->resolveDateFilter($request->input('created_to'));
 
         $threads = EmailThread::query()
-            ->with(['contact', 'latestMessage'])
+            ->with(['contact', 'latestMessage', 'firstMessage'])
             ->withCount([
+                'messages',
                 'messages as outbound_sent_count' => fn ($q) => $q->where('direction', 'outbound')->where('delivery_status', 'sent'),
                 'messages as opened_count' => fn ($q) => $q->where('direction', 'outbound')->where(fn ($inner) => $inner->whereNotNull('opened_at')->orWhere('open_count', '>', 0)),
                 'messages as inbound_count' => fn ($q) => $q->where('direction', 'inbound'),
             ])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->boolean('unread'), fn ($q) => $q->where('has_unread', true))
+            ->when($request->boolean('responded'), fn ($q) => $q->whereHas('messages', fn ($messageQuery) => $messageQuery->where('direction', 'inbound')))
             ->when($request->boolean('opened'), function ($q): void {
                 $q->whereHas(
                     'messages',
@@ -54,6 +85,8 @@ class EmailThreadController extends Controller
             })
             ->when($dateFrom, fn ($q) => $q->whereDate('last_message_at', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->whereDate('last_message_at', '<=', $dateTo))
+            ->when($createdFrom, fn ($q) => $q->whereDate('created_at', '>=', $createdFrom))
+            ->when($createdTo, fn ($q) => $q->whereDate('created_at', '<=', $createdTo))
             ->latest('last_message_at')
             ->paginate($perPage)
             ->withQueryString();
@@ -65,6 +98,8 @@ class EmailThreadController extends Controller
             'perPage' => $perPage,
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
+            'createdFrom' => $createdFrom,
+            'createdTo' => $createdTo,
         ]);
     }
 
@@ -184,7 +219,7 @@ class EmailThreadController extends Controller
         $emailThread->delete();
 
         return redirect()
-            ->route('email-threads.index')
+            ->route('email-threads.index', $this->rememberedInboxFilters())
             ->with('status', 'Thread moved to trash.');
     }
 
@@ -204,7 +239,7 @@ class EmailThreadController extends Controller
         EmailThread::query()->whereIn('id', $ids)->delete();
 
         return redirect()
-            ->route('email-threads.index')
+            ->route('email-threads.index', $this->rememberedInboxFilters())
             ->with('status', $count === 1
                 ? '1 thread moved to trash.'
                 : "{$count} threads moved to trash.");
@@ -272,7 +307,7 @@ class EmailThreadController extends Controller
                 ->where('status', EmailThreadStatus::AwaitingReply->value)
                 ->count(),
             'responded' => EmailThread::query()
-                ->where('status', EmailThreadStatus::Responded->value)
+                ->whereHas('messages', fn ($q) => $q->where('direction', 'inbound'))
                 ->count(),
             'opened' => EmailThread::query()
                 ->whereHas(
@@ -302,5 +337,47 @@ class EmailThreadController extends Controller
         } catch (Throwable) {
             return null;
         }
+    }
+
+    protected function rememberInboxFilters(Request $request): void
+    {
+        if (! $request->hasAny(self::INBOX_FILTER_KEYS)) {
+            return;
+        }
+
+        $filters = [];
+
+        foreach (self::INBOX_FILTER_KEYS as $key) {
+            if ($request->filled($key)) {
+                $filters[$key] = $request->input($key);
+            }
+        }
+
+        $request->session()->put(self::INBOX_FILTERS_SESSION_KEY, $filters);
+    }
+
+    protected function redirectToRememberedInboxFilters(Request $request): ?RedirectResponse
+    {
+        if ($request->hasAny(self::INBOX_FILTER_KEYS)) {
+            return null;
+        }
+
+        $filters = $this->rememberedInboxFilters();
+
+        if ($filters === []) {
+            return null;
+        }
+
+        return redirect()->route('email-threads.index', $filters);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function rememberedInboxFilters(): array
+    {
+        $filters = session(self::INBOX_FILTERS_SESSION_KEY, []);
+
+        return is_array($filters) ? $filters : [];
     }
 }

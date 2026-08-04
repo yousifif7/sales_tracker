@@ -22,6 +22,35 @@ document.addEventListener('DOMContentLoaded', () => {
         navLinks.forEach((link) => link.addEventListener('click', () => setOpen(false)));
     }
 
+    const sidebarRail = document.querySelector('[data-sidebar-rail]');
+    const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+    const sidebarStorageKey = 'crm-sidebar-collapsed';
+
+    if (sidebarRail && sidebarToggle) {
+        const setCollapsed = (collapsed) => {
+            sidebarRail.classList.toggle('sidebar-collapsed', collapsed);
+            sidebarRail.classList.remove('sidebar-peek');
+            sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            sidebarToggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            window.localStorage.setItem(sidebarStorageKey, collapsed ? '1' : '0');
+        };
+
+        setCollapsed(window.localStorage.getItem(sidebarStorageKey) === '1');
+
+        sidebarToggle.addEventListener('click', () => {
+            setCollapsed(! sidebarRail.classList.contains('sidebar-collapsed'));
+        });
+
+        const setPeek = (enabled) => {
+            const canPeek = sidebarRail.classList.contains('sidebar-collapsed');
+            sidebarRail.classList.toggle('sidebar-peek', canPeek && enabled);
+        };
+
+        sidebarRail.addEventListener('mouseenter', () => setPeek(true));
+        sidebarRail.addEventListener('mouseleave', () => setPeek(false));
+    }
+
     document.querySelectorAll('[data-rich-editor]').forEach((root) => {
         const surface = root.querySelector('.rich-surface');
         const input = root.querySelector('textarea');

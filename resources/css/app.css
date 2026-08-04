@@ -80,7 +80,7 @@
     }
 
     .table.table-wide {
-        @apply min-w-[56rem];
+        @apply min-w-[72rem];
     }
 
     .table th {
@@ -176,7 +176,6 @@
         color: inherit !important;
         background: transparent !important;
         background-color: transparent !important;
-        border-color: rgb(51 65 85) !important;
         max-width: 100% !important;
         box-shadow: none !important;
     }
@@ -205,12 +204,104 @@
     }
 
     .prose-email table {
-        @apply mb-3 w-full border-collapse text-left;
+        @apply mb-3 max-w-full text-left;
     }
 
     .prose-email td,
     .prose-email th {
-        @apply border px-2 py-1;
-        border-color: #334155 !important;
+        @apply align-top;
     }
+
+    .prose-email img {
+        @apply inline-block h-auto max-w-full align-middle;
+    }
+}
+
+/* Desktop CRM sidebar collapse / hover-expand */
+[data-sidebar-rail] {
+    width: 18rem;
+    transition: width 0.2s ease;
+}
+
+[data-sidebar-rail].sidebar-peek,
+[data-sidebar-rail]:not(.sidebar-collapsed) {
+    z-index: 50;
+}
+
+[data-sidebar-rail].sidebar-collapsed {
+    width: 5rem;
+}
+
+[data-sidebar-rail] [data-desktop-sidebar] {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 18rem;
+    background-color: rgb(2 6 23);
+}
+
+[data-sidebar-rail].sidebar-collapsed [data-desktop-sidebar] {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    width: 5rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    box-shadow: none;
+    overflow-y: auto;
+}
+
+[data-sidebar-rail].sidebar-collapsed.sidebar-peek [data-desktop-sidebar] {
+    width: 18rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    border-right-color: rgb(51 65 85);
+    border-top-right-radius: 1.5rem;
+    border-bottom-right-radius: 1.5rem;
+    box-shadow: 16px 0 30px -18px rgba(2, 6, 23, 0.9);
+}
+
+[data-sidebar-rail].sidebar-collapsed .sidebar-brand,
+[data-sidebar-rail].sidebar-collapsed .sidebar-nav-label,
+[data-sidebar-rail].sidebar-collapsed .sidebar-user-name,
+[data-sidebar-rail].sidebar-collapsed .sidebar-user-role,
+[data-sidebar-rail].sidebar-collapsed .sidebar-logout {
+    display: none;
+}
+
+[data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-brand {
+    display: block;
+}
+
+[data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-nav-label,
+[data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-user-name,
+[data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-user-role,
+[data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-logout {
+    display: block;
+}
+
+[data-sidebar-rail].sidebar-collapsed .sidebar-header {
+    justify-content: center;
+}
+
+[data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-header {
+    justify-content: space-between;
+}
+
+[data-sidebar-rail].sidebar-collapsed .sidebar-nav-link {
+    justify-content: center;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+[data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-nav-link {
+    justify-content: flex-start;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+[data-sidebar-rail].sidebar-collapsed .sidebar-toggle-icon {
+    transform: rotate(180deg);
 }

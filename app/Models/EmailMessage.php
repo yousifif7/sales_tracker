@@ -67,6 +67,19 @@ class EmailMessage extends Model
         ])->save();
     }
 
+    public function previewText(int $length = 100): string
+    {
+        $text = $this->body_text;
+
+        if (! filled($text) && filled($this->body_html)) {
+            $text = html_entity_decode(strip_tags((string) $this->body_html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+
+        $text = preg_replace('/\s+/u', ' ', trim((string) $text)) ?: '';
+
+        return \Illuminate\Support\Str::limit($text, $length);
+    }
+
     public function normalizedMessageId(): ?string
     {
         return self::normalizeMessageId($this->message_id);
