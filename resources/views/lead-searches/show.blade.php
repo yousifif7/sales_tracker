@@ -3,21 +3,21 @@
         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div class="min-w-0">
                 <p class="text-sm text-slate-400">
-                    {{ $query->creator?->name ?: 'System' }} • {{ $query->created_at->toDayDateTimeString() }}
+                    {{ $leadSearch->creator?->name ?: 'System' }} • {{ $leadSearch->created_at->toDayDateTimeString() }}
                 </p>
-                <p class="mt-2 max-h-24 overflow-y-auto whitespace-pre-wrap text-sm text-slate-300">{{ $query->criteria }}</p>
+                <p class="mt-2 max-h-24 overflow-y-auto whitespace-pre-wrap text-sm text-slate-300">{{ $leadSearch->criteria }}</p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <span @class([
                     'inline-flex rounded-full px-3 py-1 text-xs font-semibold',
-                    'bg-emerald-500/15 text-emerald-200' => filled($query->raw_results),
-                    'bg-amber-500/15 text-amber-200' => blank($query->raw_results),
+                    'bg-emerald-500/15 text-emerald-200' => filled($leadSearch->raw_results),
+                    'bg-amber-500/15 text-amber-200' => blank($leadSearch->raw_results),
                 ])>
-                    {{ filled($query->raw_results) ? 'Ready' : 'Still running…' }}
+                    {{ filled($leadSearch->raw_results) ? 'Ready' : 'Still running…' }}
                 </span>
                 <a class="btn-secondary" href="{{ route('lead-searches.index') }}">Back</a>
                 @can(\App\Support\Permissions::LEAD_SEARCHES_DELETE)
-                    <form method="post" action="{{ route('lead-searches.destroy', $query) }}" onsubmit="return confirm('Delete this lead search?')">
+                    <form method="post" action="{{ route('lead-searches.destroy', $leadSearch) }}" onsubmit="return confirm('Delete this lead search?')">
                         @csrf
                         @method('delete')
                         <button class="btn-secondary" type="submit">Delete</button>
@@ -26,6 +26,13 @@
             </div>
         </div>
     </section>
+
+    @if (filled(data_get($leadSearch->raw_results, 'diagnostics.summary')))
+        <section class="panel mt-6 border-amber-500/30 bg-amber-500/5">
+            <h2 class="text-sm font-semibold text-amber-200">Why this run is thin</h2>
+            <p class="mt-2 text-sm text-slate-300">{{ data_get($leadSearch->raw_results, 'diagnostics.summary') }}</p>
+        </section>
+    @endif
 
     <x-data-table wide>
         <thead>
@@ -39,7 +46,7 @@
             </tr>
         </thead>
         <tbody class="divide-y divide-slate-800">
-            @forelse (($query->raw_results['results'] ?? []) as $lead)
+            @forelse ((data_get($leadSearch->raw_results, 'results') ?? []) as $lead)
                 @php
                     $matchedContact = $matchedContacts[$loop->index] ?? null;
                     $name = filled($lead['name'] ?? null) && strtolower((string) $lead['name']) !== 'null'
@@ -77,7 +84,7 @@
                     </td>
                     <td class="text-right whitespace-nowrap">
                         @if ($matchedContact)
-                            <x-row-actions :as-cell="false">
+                            <div class="row-actions">
                                 <a class="link-action" href="{{ route('contacts.show', $matchedContact) }}">View</a>
                                 @can(\App\Support\Permissions::CONTACTS_UPDATE)
                                     <a class="link-action" href="{{ route('contacts.edit', $matchedContact) }}">Edit</a>
@@ -87,12 +94,14 @@
                                         <a class="link-action" href="{{ route('contacts.email.create', $matchedContact) }}">Email</a>
                                     @endif
                                 @endcan
-                                <x-delete-action
-                                    :action="route('contacts.destroy', $matchedContact)"
-                                    :permission="\App\Support\Permissions::CONTACTS_DELETE"
-                                    confirm="Delete this contact?"
-                                />
-                            </x-row-actions>
+                                @can(\App\Support\Permissions::CONTACTS_DELETE)
+                                    <form method="post" action="{{ route('contacts.destroy', $matchedContact) }}" onsubmit="return confirm('Delete this contact?')" class="inline">
+                                        @csrf
+                                        @method('delete')
+                                        <button class="link-danger" type="submit">Delete</button>
+                                    </form>
+                                @endcan
+                            </div>
                         @else
                             <span class="text-slate-500">Not imported</span>
                         @endif
@@ -101,7 +110,7 @@
             @empty
                 <tr>
                     <td colspan="6" class="text-center text-slate-500">
-                        {{ filled($query->raw_results) ? 'No leads were returned.' : 'Results will appear once the job finishes. Refresh in a minute.' }}
+                        {{ filled($leadSearch->raw_results) ? 'No leads were returned.' : 'Results will appear once the job finishes. Refresh in a minute.' }}
                     </td>
                 </tr>
             @endforelse
@@ -110,6 +119,6 @@
 
     <details class="panel mt-6">
         <summary class="cursor-pointer text-sm font-semibold text-slate-300">Raw API response (debug)</summary>
-        <pre class="mt-4 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950 p-4 text-xs text-slate-300">{{ json_encode($query->raw_results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: 'null' }}</pre>
+        <pre class="mt-4 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950 p-4 text-xs text-slate-300">{{ json_encode($leadSearch->raw_results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: 'null' }}</pre>
     </details>
 </x-layouts.app>

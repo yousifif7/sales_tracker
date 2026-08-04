@@ -28,6 +28,9 @@ return [
         'max_characters' => (int) env('OPENROUTER_WEB_SEARCH_MAX_CHARACTERS', 2800),
         'max_leads' => (int) env('OPENROUTER_LEAD_SEARCH_MAX_LEADS', 8),
         'min_leads' => (int) env('OPENROUTER_LEAD_SEARCH_MIN_LEADS', 5),
+        // Floor for usable (not-already-in-CRM) leads before a run is allowed to give up.
+        'min_new_leads' => (int) env('OPENROUTER_LEAD_SEARCH_MIN_NEW_LEADS', 2),
+        'max_diversify_attempts' => (int) env('OPENROUTER_LEAD_SEARCH_MAX_DIVERSIFY_ATTEMPTS', 3),
         // Drop leads whose company/person is not evidenced in web-search citations.
         'require_web_evidence' => filter_var(
             env('OPENROUTER_REQUIRE_WEB_EVIDENCE', true),

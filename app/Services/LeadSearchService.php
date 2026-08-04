@@ -45,16 +45,24 @@ class LeadSearchService
     /** @var array<string, mixed>|null */
     protected ?array $existingContactIndexCache = null;
 
+    /**
+     * Why leads were dropped on each pass, so a thin run explains itself.
+     *
+     * @var array<int, array<string, int|string>>
+     */
+    protected array $passDiagnostics = [];
+
     public function __construct(
         protected HttpFactory $http,
-    ) {
-    }
+    ) {}
 
     /**
-     * @return array{results: array<int, array<string, mixed>>, raw_response: array<string, mixed>}
+     * @return array{results: array<int, array<string, mixed>>, raw_response: array<string, mixed>, diagnostics: array<string, mixed>}
      */
     public function search(string $criteria): array
     {
+        $this->passDiagnostics = [];
+
         $model = $this->resolveModel();
         $webSearch = config('openrouter.web_search', []);
         $maxLeads = $this->resolveMaxLeads($criteria, (int) ($webSearch['max_leads'] ?? 8));
@@ -66,6 +74,8 @@ class LeadSearchService
         $maxCharacters = max(800, (int) ($webSearch['max_characters'] ?? 2800));
         $requireWebEvidence = (bool) ($webSearch['require_web_evidence'] ?? true);
         $refillMaxUses = max(1, (int) ($webSearch['refill_max_uses'] ?? 6));
+        $minNewLeads = max(1, min($maxLeads, (int) ($webSearch['min_new_leads'] ?? 2)));
+        $maxDiversifyAttempts = max(0, (int) ($webSearch['max_diversify_attempts'] ?? 3));
 
         $toolParameters = [
             'engine' => (string) ($webSearch['engine'] ?? 'auto'),
@@ -89,8 +99,10 @@ class LeadSearchService
             maxToolCalls: $maxToolCalls,
         );
 
+        $parsedResults = $this->parseResults((string) data_get($rawResponse, 'choices.0.message.content', '[]'));
+
         $results = $this->finalizeResults(
-            $this->parseResults((string) data_get($rawResponse, 'choices.0.message.content', '[]')),
+            $parsedResults,
             $rawResponse,
             $requireWebEvidence,
         );
@@ -98,7 +110,7 @@ class LeadSearchService
         // Second pass: convert leftover citation companies into real named leads.
         if (count($results) < $minLeads) {
             $needed = $minLeads - count($results);
-            $candidates = $this->candidateCompaniesFromCitations($rawResponse, $results);
+            $candidates = $this->candidateCompaniesFromCitations($rawResponse, $parsedResults);
 
             if ($candidates !== []) {
                 $refillTools = $toolParameters;
@@ -117,6 +129,7 @@ class LeadSearchService
                     $this->parseResults((string) data_get($refillResponse, 'choices.0.message.content', '[]')),
                     $refillResponse,
                     $requireWebEvidence,
+                    'refill',
                 );
 
                 $results = $this->mergeLeads($results, $refillResults, $maxLeads);
@@ -124,9 +137,94 @@ class LeadSearchService
             }
         }
 
+        // Every pass above can legitimately return leads we already have in the CRM, which
+        // leaves the run empty. Keep asking for different companies until we hit the floor.
+        $seenHosts = $this->hostsFromLeads($parsedResults);
+
+        for ($attempt = 1; $attempt <= $maxDiversifyAttempts && count($results) < $minNewLeads; $attempt++) {
+            $blockedHosts = $this->blockedHostsForDiversify($seenHosts);
+
+            if ($blockedHosts === []) {
+                break;
+            }
+
+            $retryResponse = $this->chatCompletion(
+                model: $model,
+                system: $this->systemPrompt(),
+                user: $this->buildDiversifyPrompt($criteria, $blockedHosts, $maxLeads, max($minLeads, $minNewLeads), $maxUses),
+                toolParameters: $toolParameters,
+                maxToolCalls: $maxToolCalls,
+            );
+
+            $parsedRetry = $this->parseResults((string) data_get($retryResponse, 'choices.0.message.content', '[]'));
+            $retryResults = $this->finalizeResults(
+                $parsedRetry,
+                $retryResponse,
+                $requireWebEvidence,
+                'diversify_'.$attempt,
+            );
+
+            if ($retryResults !== []) {
+                $results = $this->mergeLeads($results, $retryResults, $maxLeads);
+            }
+
+            $rawResponse[$attempt === 1 ? 'diversify_retry' : 'diversify_retry_'.$attempt] = $retryResponse;
+
+            $nextSeenHosts = array_values(array_unique(array_merge($seenHosts, $this->hostsFromLeads($parsedRetry))));
+
+            // The model is out of new companies — stop instead of burning more credits.
+            if ($nextSeenHosts === $seenHosts) {
+                break;
+            }
+
+            $seenHosts = $nextSeenHosts;
+        }
+
+        $results = array_slice($results, 0, $maxLeads);
+
         return [
-            'results' => array_slice($results, 0, $maxLeads),
+            'results' => $results,
+            'diagnostics' => $this->buildDiagnostics($results, $minNewLeads),
             'raw_response' => $rawResponse,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $results
+     * @return array<string, mixed>
+     */
+    protected function buildDiagnostics(array $results, int $minNewLeads): array
+    {
+        $sum = fn (string $key): int => (int) collect($this->passDiagnostics)->sum($key);
+
+        $droppedExisting = $sum('dropped_already_in_crm');
+        $droppedUnverified = $sum('dropped_unverified');
+        $droppedDuplicate = $sum('dropped_duplicate_company');
+
+        $summary = count($results) >= $minNewLeads
+            ? null
+            : trim(sprintf(
+                'Only %d usable lead(s) from %d passes. The model returned %d companies: %d already in your CRM, %d unverifiable from citations, %d duplicate companies. %s',
+                count($results),
+                count($this->passDiagnostics),
+                $sum('returned_by_model'),
+                $droppedExisting,
+                $droppedUnverified,
+                $droppedDuplicate,
+                $droppedExisting > 0
+                    ? 'This region/ICP looks close to exhausted — widen the region or loosen the size range.'
+                    : 'Try a broader region or allow general company emails.',
+            ));
+
+        return [
+            'min_new_leads' => $minNewLeads,
+            'usable_leads' => count($results),
+            'model_returned' => $sum('returned_by_model'),
+            'dropped_already_in_crm' => $droppedExisting,
+            'dropped_unverified' => $droppedUnverified,
+            'dropped_duplicate_company' => $droppedDuplicate,
+            'passes' => $this->passDiagnostics,
+            'summary' => $summary,
         ];
     }
 
@@ -190,15 +288,29 @@ class LeadSearchService
      * @param  array<string, mixed>  $rawResponse
      * @return array<int, array<string, mixed>>
      */
-    protected function finalizeResults(array $leads, array $rawResponse, bool $requireWebEvidence): array
+    protected function finalizeResults(array $leads, array $rawResponse, bool $requireWebEvidence, string $pass = 'initial'): array
     {
+        $returned = count($leads);
+
         if ($requireWebEvidence) {
             $leads = $this->retainEvidenceBackedLeads($leads, $rawResponse);
         }
 
+        $verified = count($leads);
         $leads = $this->excludeExistingContacts($leads);
+        $new = count($leads);
+        $leads = $this->dedupeByCompany($leads);
 
-        return $this->dedupeByCompany($leads);
+        $this->passDiagnostics[] = [
+            'pass' => $pass,
+            'returned_by_model' => $returned,
+            'dropped_unverified' => $returned - $verified,
+            'dropped_already_in_crm' => $verified - $new,
+            'dropped_duplicate_company' => $new - count($leads),
+            'kept' => count($leads),
+        ];
+
+        return $leads;
     }
 
     /**
@@ -381,6 +493,60 @@ Hard rules:
 PROMPT;
     }
 
+    /**
+     * @param  list<string>  $blockedHosts
+     */
+    protected function buildDiversifyPrompt(string $criteria, array $blockedHosts, int $maxLeads, int $minLeads, int $maxUses): string
+    {
+        $excludeBlock = $this->buildExclusionPromptBlock();
+        $blocked = implode(', ', array_slice($blockedHosts, 0, 40));
+
+        return <<<PROMPT
+Find sales leads that match:
+
+{$criteria}
+
+The previous attempt returned companies that are already in our CRM or duplicate domains.
+Find DIFFERENT companies this time.
+
+Do not return any lead from these domains:
+{$blocked}
+
+Mandatory search plan (max {$maxUses} web searches):
+1) Discover at least {$maxLeads} distinct NEW candidate company websites that match the region + service type.
+2) Skip companies/domains in the CRM exclude list below and skip the blocked domains above.
+3) For EVERY remaining candidate, open about / team / meet-the-team / our-people / contact pages.
+4) Extract a REAL full name (first AND last) with role Owner / Managing Director / Director / Founder.
+5) Include public email if shown (info@ is fine). If no email, still include the lead with email null.
+6) Keep going until you have at least {$minLeads} verified NEW leads (target {$maxLeads}).
+
+{$excludeBlock}
+
+Return JSON array only:
+[
+  {
+    "name": "First Last",
+    "role": "Owner / MD / Director / Founder",
+    "company": "Company name",
+    "email": "public email or null",
+    "website": "https://company-website.com",
+    "linkedin_url": "https://www.linkedin.com/in/... or null",
+    "company_linkedin_url": null,
+    "social_links": {},
+    "source_url": "https://about-or-team-page-that-names-the-person"
+  }
+]
+
+Hard rules:
+- JSON only.
+- Return NEW companies only, not the blocked domains.
+- Minimum {$minLeads} leads when candidate firms exist. Target {$maxLeads}.
+- One decision-maker per company (prefer Owner / Managing Director).
+- name MUST be a real first + last name found on the source page.
+- Max {$maxLeads} leads.
+PROMPT;
+    }
+
     protected function resolveModel(): string
     {
         $model = trim((string) config('openrouter.model'));
@@ -457,12 +623,13 @@ PROMPT;
         $index = $this->existingContactIndex();
 
         if ($index['companies'] === [] && $index['emails'] === [] && $index['hosts'] === []) {
-            return "CRM exclude list: (empty — no existing contacts yet)";
+            return 'CRM exclude list: (empty — no existing contacts yet)';
         }
 
-        // Keep this compact — a huge exclude list burns tokens and makes the model under-return.
-        $companies = array_slice($index['companies'], 0, 25);
-        $hosts = array_slice($index['hosts'], 0, 25);
+        // Truncating this list makes the model re-suggest contacts we already have,
+        // which then get filtered out and waste the whole run.
+        $companies = array_slice($index['companies'], 0, 60);
+        $hosts = array_slice($index['hosts'], 0, 60);
 
         $lines = ['CRM exclude list (already in our database — skip these companies/domains):'];
 
@@ -474,7 +641,45 @@ PROMPT;
             $lines[] = '- Domains: '.implode('; ', $hosts);
         }
 
+        $lines[] = 'Leads from the exclude list are discarded, so returning them wastes the run. Find different companies instead.';
+
         return implode("\n", $lines);
+    }
+
+    /**
+     * Domains the next pass must avoid: everything already returned this run plus
+     * every company already sitting in the CRM.
+     *
+     * @param  list<string>  $seenHosts
+     * @return list<string>
+     */
+    protected function blockedHostsForDiversify(array $seenHosts): array
+    {
+        $index = $this->existingContactIndex();
+
+        return array_values(array_unique(array_merge(
+            $seenHosts,
+            array_slice($index['hosts'], 0, 60),
+        )));
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $leads
+     * @return list<string>
+     */
+    protected function hostsFromLeads(array $leads): array
+    {
+        return collect($leads)
+            ->flatMap(function (array $lead): array {
+                return [
+                    $this->normalizeHost($lead['website'] ?? null),
+                    $this->normalizeHost($lead['source_url'] ?? null),
+                ];
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -812,9 +1017,10 @@ PROMPT;
                 $hostEvidence = collect($matchedHosts)
                     ->flatMap(fn (string $host) => $citationTextsByHost[$host] ?? [])
                     ->implode("\n");
-                $evidenceBlob = $hostEvidence !== ''
-                    ? $hostEvidence
-                    : trim($allCitationText);
+
+                // A company page often shows only a first name ("Gennine, Director") while the
+                // full name is proven by another citation (LinkedIn, directory). Accept either.
+                $evidenceBlob = trim($hostEvidence."\n".$allCitationText);
 
                 if ($evidenceBlob !== '' && ! $this->personNameAppearsInEvidence($name, $evidenceBlob)) {
                     return null;
@@ -993,7 +1199,6 @@ PROMPT;
     }
 
     /**
-     * @param  mixed  $links
      * @return array<string, string>
      */
     protected function normalizeSocialLinks(mixed $links): array

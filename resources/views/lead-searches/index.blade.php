@@ -17,31 +17,39 @@
             </tr>
         </thead>
         <tbody class="divide-y divide-slate-800">
-            @forelse ($queries as $query)
+            @forelse ($leadSearches as $leadSearch)
+                @php
+                    $resultCount = count($leadSearch->raw_results['results'] ?? []);
+                    $isReady = filled($leadSearch->raw_results);
+                @endphp
                 <tr>
-                    <td class="whitespace-nowrap text-slate-300">{{ $query->created_at->format('M d, H:i') }}</td>
-                    <td>{{ $query->creator?->name ?: 'System' }}</td>
+                    <td class="whitespace-nowrap text-slate-300">{{ $leadSearch->created_at->format('M d, H:i') }}</td>
+                    <td>{{ $leadSearch->creator?->name ?: 'System' }}</td>
                     <td class="max-w-md">
-                        <p class="truncate text-slate-200" title="{{ $query->criteria }}">{{ \Illuminate\Support\Str::limit($query->criteria, 90) }}</p>
+                        <p class="truncate text-slate-200" title="{{ $leadSearch->criteria }}">{{ \Illuminate\Support\Str::limit($leadSearch->criteria, 90) }}</p>
                     </td>
-                    <td>{{ count($query->raw_results['results'] ?? []) }}</td>
+                    <td>{{ $resultCount }}</td>
                     <td>
                         <span @class([
                             'rounded-full px-2 py-1 text-xs font-semibold',
-                            'bg-emerald-500/15 text-emerald-200' => filled($query->raw_results),
-                            'bg-amber-500/15 text-amber-200' => blank($query->raw_results),
+                            'bg-emerald-500/15 text-emerald-200' => $isReady,
+                            'bg-amber-500/15 text-amber-200' => ! $isReady,
                         ])>
-                            {{ filled($query->raw_results) ? 'Ready' : 'Pending' }}
+                            {{ $isReady ? 'Ready' : 'Pending' }}
                         </span>
                     </td>
-                    <x-row-actions>
-                        <a class="link-action" href="{{ route('lead-searches.show', $query) }}">View</a>
-                        <x-delete-action
-                            :action="route('lead-searches.destroy', $query)"
-                            :permission="\App\Support\Permissions::LEAD_SEARCHES_DELETE"
-                            confirm="Delete this lead search?"
-                        />
-                    </x-row-actions>
+                    <td class="text-right whitespace-nowrap">
+                        <div class="row-actions">
+                            <a class="link-action" href="{{ route('lead-searches.show', $leadSearch) }}">View</a>
+                            @can(\App\Support\Permissions::LEAD_SEARCHES_DELETE)
+                                <form method="post" action="{{ route('lead-searches.destroy', $leadSearch) }}" onsubmit="return confirm('Delete this lead search?')" class="inline">
+                                    @csrf
+                                    @method('delete')
+                                    <button class="link-danger" type="submit">Delete</button>
+                                </form>
+                            @endcan
+                        </div>
+                    </td>
                 </tr>
             @empty
                 <tr>
@@ -52,6 +60,6 @@
     </x-data-table>
 
     <div class="mt-6">
-        {{ $queries->links() }}
+        {{ $leadSearches->links() }}
     </div>
 </x-layouts.app>

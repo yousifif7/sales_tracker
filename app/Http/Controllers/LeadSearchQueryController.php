@@ -18,7 +18,7 @@ class LeadSearchQueryController extends Controller
         $this->authorizePermission(Permissions::LEAD_SEARCHES_VIEW);
 
         return view('lead-searches.index', [
-            'queries' => LeadSearchQuery::query()
+            'leadSearches' => LeadSearchQuery::query()
                 ->with('creator')
                 ->latest()
                 ->paginate(12),
@@ -81,7 +81,7 @@ class LeadSearchQueryController extends Controller
         });
 
         return view('lead-searches.show', [
-            'query' => $leadSearch->load('creator'),
+            'leadSearch' => $leadSearch->load('creator'),
             'matchedContacts' => $matchedContacts,
         ]);
     }

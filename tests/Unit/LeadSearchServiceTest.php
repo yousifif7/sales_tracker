@@ -340,6 +340,8 @@ class LeadSearchServiceTest extends TestCase
 
         $this->assertCount(1, $result['results']);
         $this->assertSame('Sabia Kauser', $result['results'][0]['name']);
+        $this->assertGreaterThan(0, $result['diagnostics']['dropped_already_in_crm']);
+        $this->assertStringContainsString('already in your CRM', (string) $result['diagnostics']['summary']);
 
         Http::assertSent(function (Request $request): bool {
             $prompt = (string) data_get($request->data(), 'messages.1.content');
@@ -609,5 +611,316 @@ class LeadSearchServiceTest extends TestCase
 
         $this->assertCount(1, $result['results']);
         $this->assertSame('Andy Butterfield', $result['results'][0]['name']);
+    }
+
+    public function test_it_runs_diversify_retry_when_initial_results_are_only_existing_contacts(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => false,
+            'openrouter.web_search.min_leads' => 1,
+            'openrouter.web_search.min_new_leads' => 1,
+        ]);
+
+        Contact::query()->create([
+            'name' => 'Ashley Morgan',
+            'company' => 'Senturian Security Group Ltd',
+            'email' => 'sales@senturiansecurity.co.uk',
+            'source' => 'manual',
+            'status' => 'contacted',
+            'website' => 'https://www.senturiansecurity.co.uk/',
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::sequence()
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Ashley Morgan',
+                                        'role' => 'Managing Director',
+                                        'company' => 'Senturian Security Group Ltd',
+                                        'email' => 'sales@senturiansecurity.co.uk',
+                                        'website' => 'https://www.senturiansecurity.co.uk/',
+                                        'source_url' => 'https://www.senturiansecurity.co.uk/about-us/',
+                                    ],
+                                ]),
+                            ],
+                        ],
+                    ],
+                ], 200)
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Sabia Kauser',
+                                        'role' => 'Founder & Director',
+                                        'company' => 'Eagle Security Protection Ltd',
+                                        'email' => null,
+                                        'website' => 'https://eaglesecurityprotection.co.uk/',
+                                        'source_url' => 'https://eaglesecurityprotection.co.uk/founder-profile-page/',
+                                    ],
+                                ]),
+                            ],
+                        ],
+                    ],
+                ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('Find UK security guarding companies in the Midlands. max 5.');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Sabia Kauser', $result['results'][0]['name']);
+        $this->assertArrayHasKey('diversify_retry', $result['raw_response']);
+
+        Http::assertSent(function (Request $request): bool {
+            $prompt = (string) data_get($request->data(), 'messages.1.content');
+
+            return str_contains($prompt, 'Find DIFFERENT companies this time.')
+                && str_contains($prompt, 'senturiansecurity.co.uk');
+        });
+    }
+
+    public function test_it_runs_second_diversify_retry_when_first_retry_is_also_existing_contact(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => false,
+            'openrouter.web_search.min_leads' => 1,
+            'openrouter.web_search.min_new_leads' => 1,
+        ]);
+
+        Contact::query()->create([
+            'name' => 'Ashley Morgan',
+            'company' => 'Senturian Security Group Ltd',
+            'email' => 'sales@senturiansecurity.co.uk',
+            'source' => 'manual',
+            'status' => 'contacted',
+            'website' => 'https://www.senturiansecurity.co.uk/',
+        ]);
+
+        Contact::query()->create([
+            'name' => 'Gennine Basson',
+            'company' => 'Kopek Security and Facilities Ltd',
+            'email' => null,
+            'source' => 'manual',
+            'status' => 'contacted',
+            'website' => 'https://kopeksecurity.com/',
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::sequence()
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Ashley Morgan',
+                                        'role' => 'Managing Director',
+                                        'company' => 'Senturian Security Group Ltd',
+                                        'email' => 'sales@senturiansecurity.co.uk',
+                                        'website' => 'https://www.senturiansecurity.co.uk/',
+                                        'source_url' => 'https://www.senturiansecurity.co.uk/about-us/',
+                                    ],
+                                ]),
+                            ],
+                        ],
+                    ],
+                ], 200)
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Gennine Basson',
+                                        'role' => 'Founder',
+                                        'company' => 'Kopek Security and Facilities Ltd',
+                                        'email' => null,
+                                        'website' => 'https://kopeksecurity.com/',
+                                        'source_url' => 'https://kopeksecurity.com/about-us/',
+                                    ],
+                                ]),
+                            ],
+                        ],
+                    ],
+                ], 200)
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Harpreet Singh',
+                                        'role' => 'Business Development Manager',
+                                        'company' => 'Crown Security UK',
+                                        'email' => null,
+                                        'website' => 'https://www.crownsecurity.uk.com/',
+                                        'source_url' => 'https://www.crownsecurity.uk.com/team/',
+                                    ],
+                                ]),
+                            ],
+                        ],
+                    ],
+                ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('Find UK security guarding companies in the Midlands. max 5.');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Harpreet Singh', $result['results'][0]['name']);
+        $this->assertArrayHasKey('diversify_retry', $result['raw_response']);
+        $this->assertArrayHasKey('diversify_retry_2', $result['raw_response']);
+    }
+
+    public function test_it_accepts_a_lead_whose_full_name_is_only_proven_by_another_citation(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => true,
+            'openrouter.web_search.min_leads' => 1,
+            'openrouter.web_search.min_new_leads' => 1,
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                [
+                                    'name' => 'Gennine Basson',
+                                    'role' => 'Director',
+                                    'company' => 'Kopek Security and Facilities Ltd',
+                                    'website' => 'https://kopeksecurity.com/',
+                                    'source_url' => 'https://kopeksecurity.com/about-us/',
+                                ],
+                            ]),
+                            'annotations' => [
+                                [
+                                    'type' => 'url_citation',
+                                    'url_citation' => [
+                                        'url' => 'https://kopeksecurity.com/about-us/',
+                                        // Company page only ever shows the first name.
+                                        'content' => 'Meet the team. Gennine, Director. Sue, Director.',
+                                    ],
+                                ],
+                                [
+                                    'type' => 'url_citation',
+                                    'url_citation' => [
+                                        'url' => 'https://linkedin.com/in/gennine-basson-firp-certrp-2163853b',
+                                        'content' => 'Gennine Basson FIRP CertRP — Co Founder/Director at Kopek Security',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('Midlands guarding firms max 5');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Gennine Basson', $result['results'][0]['name']);
+    }
+
+    public function test_it_keeps_searching_until_the_minimum_new_lead_floor_is_reached(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => false,
+            'openrouter.web_search.min_leads' => 1,
+            'openrouter.web_search.min_new_leads' => 2,
+        ]);
+
+        Contact::query()->create([
+            'name' => 'Chris Perry',
+            'company' => 'NVC Security',
+            'email' => 'chris@nvc-security.com',
+            'source' => 'manual',
+            'status' => 'contacted',
+            'website' => 'https://nvc-security.com/',
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::sequence()
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Chris Perry',
+                                        'role' => 'Managing Director',
+                                        'company' => 'NVC Security',
+                                        'website' => 'https://nvc-security.com/',
+                                        'source_url' => 'https://nvc-security.com/about-us',
+                                    ],
+                                    [
+                                        'name' => 'Spencer Martin',
+                                        'role' => 'Managing Director',
+                                        'company' => 'CSM Security',
+                                        'website' => 'https://csmsecurity.co.uk',
+                                        'source_url' => 'https://csmsecurity.co.uk/meet-the-team/',
+                                    ],
+                                ]),
+                            ],
+                        ],
+                    ],
+                ], 200)
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Owain Davies',
+                                        'role' => 'Director',
+                                        'company' => 'Castell Security Ltd',
+                                        'website' => 'https://castellsecurityltd.com',
+                                        'source_url' => 'https://castellsecurityltd.com/about',
+                                    ],
+                                ]),
+                            ],
+                        ],
+                    ],
+                ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('Midlands guarding firms max 5');
+
+        $this->assertCount(2, $result['results']);
+        $this->assertSame(
+            ['Spencer Martin', 'Owain Davies'],
+            array_column($result['results'], 'name'),
+        );
+        $this->assertNull($result['diagnostics']['summary']);
+
+        // The retry must block both the CRM domain and the domains already returned.
+        Http::assertSent(function (Request $request): bool {
+            $prompt = (string) data_get($request->data(), 'messages.1.content');
+
+            return str_contains($prompt, 'Find DIFFERENT companies this time.')
+                && str_contains($prompt, 'nvc-security.com')
+                && str_contains($prompt, 'csmsecurity.co.uk');
+        });
     }
 }
