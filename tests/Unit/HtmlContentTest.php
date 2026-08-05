@@ -21,6 +21,42 @@ class HtmlContentTest extends TestCase
         $this->assertStringNotContainsString('alert(1)', $sanitized);
     }
 
+    public function test_sanitize_converts_contenteditable_divs_to_paragraphs(): void
+    {
+        $html = '<div>Hi Paul,</div><div><br></div><div>I built FieldLine.</div>';
+
+        $sanitized = HtmlContent::sanitize($html);
+
+        $this->assertStringNotContainsString('<div', $sanitized);
+        $this->assertStringContainsString('<p>Hi Paul,</p>', $sanitized);
+        $this->assertStringContainsString('<p>I built FieldLine.</p>', $sanitized);
+    }
+
+    public function test_sanitize_converts_plain_text_newlines_to_paragraphs(): void
+    {
+        $html = "Hi Paul,\n\nI built FieldLine.\n\nBest,\nYousif";
+
+        $sanitized = HtmlContent::sanitize($html);
+
+        $this->assertStringContainsString('<p>Hi Paul,</p>', $sanitized);
+        $this->assertStringContainsString('<p>I built FieldLine.</p>', $sanitized);
+        $this->assertStringContainsString('<p>Best,</p>', $sanitized);
+        $this->assertStringContainsString('<p>Yousif</p>', $sanitized);
+    }
+
+    public function test_sanitize_rebuilds_single_paragraph_with_internal_breaks(): void
+    {
+        $html = "<p>Hi Yousif,\n\nA lot of security firms...\n\n• live GPS\n• shifts / rota\n\nBest,\nYousif</p>";
+
+        $sanitized = HtmlContent::sanitize($html);
+
+        $this->assertStringContainsString('<p>Hi Yousif,</p>', $sanitized);
+        $this->assertStringContainsString('<ul>', $sanitized);
+        $this->assertStringContainsString('<li>live GPS</li>', $sanitized);
+        $this->assertStringContainsString('<li>shifts / rota</li>', $sanitized);
+        $this->assertStringContainsString('<p>Best,</p>', $sanitized);
+    }
+
     public function test_sanitize_strips_disallowed_tags_but_keeps_text(): void
     {
         $html = '<div class="x">Safe text</div>';
@@ -28,7 +64,7 @@ class HtmlContentTest extends TestCase
         $sanitized = HtmlContent::sanitize($html);
 
         $this->assertStringNotContainsString('<div', $sanitized);
-        $this->assertStringContainsString('Safe text', $sanitized);
+        $this->assertStringContainsString('<p>Safe text</p>', $sanitized);
     }
 
     public function test_sanitize_inbound_strips_inline_styles(): void
@@ -64,5 +100,17 @@ class HtmlContentTest extends TestCase
         $this->assertStringNotContainsString('cid:logo', $sanitized);
         $this->assertStringNotContainsString('javascript:alert(1)', $sanitized);
         $this->assertStringContainsString('https://example.com/logo.png', $sanitized);
+    }
+
+    public function test_style_outbound_adds_inline_styles_to_paragraphs_and_lists(): void
+    {
+        $html = '<p>Hello</p><ul><li>One</li></ul><a href="https://fieldline.yousiffarra.com">Demo</a>';
+
+        $styled = HtmlContent::styleOutbound($html);
+
+        $this->assertStringContainsString('margin:0 0 14px 0', $styled);
+        $this->assertStringContainsString('<li style="margin:0 0 8px 0', $styled);
+        $this->assertStringContainsString('href="https://fieldline.yousiffarra.com"', $styled);
+        $this->assertStringContainsString('color:#0284c7', $styled);
     }
 }

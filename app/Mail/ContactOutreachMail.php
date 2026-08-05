@@ -31,7 +31,7 @@ class ContactOutreachMail extends Mailable
     ) {
         $sanitized = HtmlContent::sanitize($emailBody);
         $html = $sanitized !== '' ? $sanitized : HtmlContent::plainToHtml($emailBody);
-        $this->bodyHtml = $this->withTrackingPixel($html);
+        $this->bodyHtml = HtmlContent::styleOutbound($html);
         $this->bodyText = HtmlContent::toPlainText($html);
     }
 
@@ -77,6 +77,8 @@ class ContactOutreachMail extends Mailable
 
     public function content(): Content
     {
+        $signature = config('outreach.signature', []);
+
         return new Content(
             html: 'emails.outreach-html',
             text: 'emails.outreach-text',
@@ -84,23 +86,14 @@ class ContactOutreachMail extends Mailable
                 'subject' => $this->emailSubject,
                 'bodyHtml' => $this->bodyHtml,
                 'bodyText' => $this->bodyText,
+                'signatureName' => (string) ($signature['name'] ?? config('mail.from.name', 'Yousif Elfarra')),
+                'signatureTitle' => (string) ($signature['title'] ?? 'FieldLine — white-label security control room'),
+                'signatureWebsite' => (string) ($signature['website'] ?? 'https://fieldline.yousiffarra.com'),
+                'signatureEmail' => (string) ($signature['email'] ?? config('mail.from.address', '')),
+                'trackingPixelUrl' => filled($this->trackingToken)
+                    ? route('email.tracking.open', ['token' => $this->trackingToken])
+                    : null,
             ],
         );
-    }
-
-    protected function withTrackingPixel(string $html): string
-    {
-        if (! filled($this->trackingToken)) {
-            return $html;
-        }
-
-        $url = route('email.tracking.open', ['token' => $this->trackingToken]);
-        $pixel = '<img src="'.e($url).'" width="1" height="1" alt="" style="display:none;width:1px;height:1px;border:0;" />';
-
-        if (str_contains(strtolower($html), '</body>')) {
-            return preg_replace('/<\/body>/i', $pixel.'</body>', $html, 1) ?? ($html.$pixel);
-        }
-
-        return $html.$pixel;
     }
 }

@@ -165,7 +165,9 @@
                 var input = root.querySelector('textarea');
                 if (!surface || !input) return;
                 var sync = function () {
-                    input.value = surface.innerHTML.trim() === '<br>' ? '' : surface.innerHTML;
+                    var html = surface.innerHTML.trim() === '<br>' ? '' : surface.innerHTML;
+                    html = html.replace(/<\s*div[^>]*>/gi, '<p>').replace(/<\/\s*div\s*>/gi, '</p>');
+                    input.value = html;
                 };
                 root.querySelectorAll('[data-cmd]').forEach(function (button) {
                     button.addEventListener('click', function (event) {
@@ -182,6 +184,27 @@
                         }
                         sync();
                     });
+                });
+                surface.addEventListener('paste', function (event) {
+                    var clipboard = event.clipboardData || window.clipboardData;
+                    if (!clipboard) return;
+                    var text = clipboard.getData('text/plain');
+                    if (!text) return;
+                    event.preventDefault();
+                    var escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    var blocks = escaped.split(/\n{2,}/).map(function (block) {
+                        var lines = block.split(/\n/);
+                        var nonEmpty = lines.filter(function (line) { return line.trim() !== ''; });
+                        var bulletLines = nonEmpty.filter(function (line) { return /^\s*[•\-\*]\s+/.test(line); });
+                        if (bulletLines.length > 0 && bulletLines.length === nonEmpty.length) {
+                            return '<ul>' + nonEmpty.map(function (line) {
+                                return '<li>' + line.trim().replace(/^[•\-\*]\s+/, '') + '</li>';
+                            }).join('') + '</ul>';
+                        }
+                        return '<p>' + lines.join('<br>') + '</p>';
+                    }).join('');
+                    document.execCommand('insertHTML', false, blocks || '<p><br></p>');
+                    sync();
                 });
                 surface.addEventListener('input', sync);
                 surface.addEventListener('blur', sync);

@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'signature' => [
+        'name' => env('OUTREACH_SIGNATURE_NAME', env('MAIL_FROM_NAME', 'Yousif Elfarra')),
+        'title' => env('OUTREACH_SIGNATURE_TITLE', 'FieldLine — white-label security control room'),
+        'website' => env('OUTREACH_SIGNATURE_WEBSITE', 'https://fieldline.yousiffarra.com'),
+        'email' => env('OUTREACH_SIGNATURE_EMAIL', env('MAIL_FROM_ADDRESS', 'yousif@yousiffarra.com')),
+    ],
+
     'templates' => [
         'fieldline_cold' => [
             'label' => 'FieldLine — cold email',

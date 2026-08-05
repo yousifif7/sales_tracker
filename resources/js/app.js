@@ -66,7 +66,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const sync = () => {
-            input.value = surface.innerHTML.trim() === '<br>' ? '' : surface.innerHTML;
+            let html = surface.innerHTML.trim() === '<br>' ? '' : surface.innerHTML;
+
+            // Contenteditable uses <div> for Enter/paste; normalize before submit.
+            html = html
+                .replace(/<\s*div[^>]*>/gi, '<p>')
+                .replace(/<\/\s*div\s*>/gi, '</p>');
+
+            input.value = html;
         };
 
         root.querySelectorAll('[data-cmd]').forEach((button) => {
@@ -88,6 +95,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 sync();
             });
+        });
+
+        // Always use plain text on paste so newlines become real <p>/<br>/<li>.
+        surface.addEventListener('paste', (event) => {
+            const clipboard = event.clipboardData || window.clipboardData;
+            if (! clipboard) {
+                return;
+            }
+
+            const text = clipboard.getData('text/plain');
+            if (! text) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const escaped = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            const blocks = escaped.split(/\n{2,}/).map((block) => {
+                const lines = block.split(/\n/);
+                const bulletLines = lines.filter((line) => /^\s*[•\-\*]\s+/.test(line));
+
+                if (bulletLines.length > 0 && bulletLines.length === lines.filter((line) => line.trim() !== '').length) {
+                    const items = lines
+                        .map((line) => line.trim())
+                        .filter(Boolean)
+                        .map((line) => line.replace(/^[•\-\*]\s+/, ''))
+                        .map((item) => `<li>${item}</li>`)
+                        .join('');
+
+                    return `<ul>${items}</ul>`;
+                }
+
+                return `<p>${lines.join('<br>')}</p>`;
+            }).join('');
+
+            document.execCommand('insertHTML', false, blocks || '<p><br></p>');
+            sync();
         });
 
         surface.addEventListener('input', sync);
