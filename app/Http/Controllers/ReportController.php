@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Enums\ContactSource;
 use App\Models\Campaign;
 use App\Models\Contact;
+use App\Models\EmailThread;
 use App\Models\Interaction;
 use App\Support\Permissions;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class ReportController extends Controller
@@ -17,46 +19,67 @@ class ReportController extends Controller
         $this->authorizePermission(Permissions::REPORTS_VIEW);
 
         $responseByCampaign = Campaign::query()
-            ->leftJoin('interactions', 'campaigns.id', '=', 'interactions.campaign_id')
-            ->leftJoin('responses', 'interactions.id', '=', 'responses.interaction_id')
-            ->groupBy('campaigns.id', 'campaigns.name')
-            ->selectRaw('campaigns.name, COUNT(DISTINCT interactions.id) as interaction_count, COUNT(responses.id) as response_count')
+            ->with([
+                'emailThreads' => fn ($query) => $query->withCount([
+                    'messages as outbound_sent_count' => fn ($messageQuery) => $messageQuery
+                        ->where('direction', 'outbound')
+                        ->where('delivery_status', 'sent'),
+                    'messages as inbound_count' => fn ($messageQuery) => $messageQuery
+                        ->where('direction', 'inbound'),
+                ]),
+            ])
             ->get()
-            ->map(function ($row) {
-                $rate = $row->interaction_count > 0
-                    ? round(($row->response_count / $row->interaction_count) * 100, 1)
+            ->map(function (Campaign $campaign): array {
+                [$threadCount, $replyCount] = $this->threadReplyStats($campaign->emailThreads);
+
+                $rate = $threadCount > 0
+                    ? round(($replyCount / $threadCount) * 100, 1)
                     : 0;
 
                 return [
-                    'label' => $row->name,
-                    'interactions' => $row->interaction_count,
-                    'responses' => $row->response_count,
+                    'label' => $campaign->name,
+                    'threads' => $threadCount,
+                    'replies' => $replyCount,
                     'rate' => $rate,
                 ];
             });
 
         $responseBySource = Contact::query()
-            ->leftJoin('interactions', 'contacts.id', '=', 'interactions.contact_id')
-            ->leftJoin('responses', 'interactions.id', '=', 'responses.interaction_id')
-            ->groupBy('contacts.source')
-            ->selectRaw('contacts.source, COUNT(DISTINCT interactions.id) as interaction_count, COUNT(responses.id) as response_count')
+            ->with([
+                'emailThreads' => fn ($query) => $query->withCount([
+                    'messages as outbound_sent_count' => fn ($messageQuery) => $messageQuery
+                        ->where('direction', 'outbound')
+                        ->where('delivery_status', 'sent'),
+                    'messages as inbound_count' => fn ($messageQuery) => $messageQuery
+                        ->where('direction', 'inbound'),
+                ]),
+            ])
             ->get()
-            ->map(function ($row) {
-                $rate = $row->interaction_count > 0
-                    ? round(($row->response_count / $row->interaction_count) * 100, 1)
+            ->groupBy(fn (Contact $contact) => $contact->source?->value ?? 'unknown')
+            ->map(function (Collection $contacts, string $sourceValue): array {
+                $threadCount = 0;
+                $replyCount = 0;
+
+                foreach ($contacts as $contact) {
+                    [$contactThreadCount, $contactReplyCount] = $this->threadReplyStats($contact->emailThreads);
+                    $threadCount += $contactThreadCount;
+                    $replyCount += $contactReplyCount;
+                }
+
+                $rate = $threadCount > 0
+                    ? round(($replyCount / $threadCount) * 100, 1)
                     : 0;
 
-                $source = $row->source instanceof ContactSource
-                    ? $row->source
-                    : ContactSource::tryFrom((string) $row->source);
+                $source = ContactSource::tryFrom($sourceValue);
 
                 return [
                     'label' => $source?->label() ?? 'Unknown',
-                    'interactions' => $row->interaction_count,
-                    'responses' => $row->response_count,
+                    'threads' => $threadCount,
+                    'replies' => $replyCount,
                     'rate' => $rate,
                 ];
-            });
+            })
+            ->values();
 
         return view('reports.index', [
             'responseByCampaign' => $responseByCampaign,
@@ -116,6 +139,33 @@ class ReportController extends Controller
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="interactions.csv"',
         ]);
+    }
+
+    /**
+     * @param  iterable<int, EmailThread>  $threads
+     * @return array{0: int, 1: int}
+     */
+    protected function threadReplyStats(iterable $threads): array
+    {
+        $threadCount = 0;
+        $replyCount = 0;
+
+        foreach ($threads as $thread) {
+            $outboundSentCount = (int) ($thread->outbound_sent_count ?? 0);
+            $inboundCount = (int) ($thread->inbound_count ?? 0);
+
+            if ($outboundSentCount < 1) {
+                continue;
+            }
+
+            $threadCount++;
+
+            if ($inboundCount > 0) {
+                $replyCount++;
+            }
+        }
+
+        return [$threadCount, $replyCount];
     }
 
     protected function escapeCsv(mixed $value): string

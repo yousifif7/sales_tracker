@@ -14,15 +14,15 @@
 
     <div class="mt-6 grid gap-6 xl:grid-cols-2">
         <section class="panel">
-            <h3 class="text-lg font-semibold text-white">Response rate by campaign</h3>
-            <p class="mt-1 mb-4 text-sm text-slate-400">Interactions with a linked response outcome.</p>
+            <h3 class="text-lg font-semibold text-white">Reply rate by campaign</h3>
+            <p class="mt-1 mb-4 text-sm text-slate-400">Sent email threads that received at least one inbound reply.</p>
 
             <x-data-table>
                 <thead>
                     <tr>
                         <th>Campaign</th>
-                        <th>Responses</th>
-                        <th>Interactions</th>
+                        <th>Replies</th>
+                        <th>Sent threads</th>
                         <th>Rate</th>
                     </tr>
                 </thead>
@@ -30,8 +30,8 @@
                     @forelse ($responseByCampaign as $row)
                         <tr>
                             <td class="font-medium text-white">{{ $row['label'] }}</td>
-                            <td>{{ $row['responses'] }}</td>
-                            <td>{{ $row['interactions'] }}</td>
+                            <td>{{ $row['replies'] }}</td>
+                            <td>{{ $row['threads'] }}</td>
                             <td class="text-sky-300 font-semibold">{{ $row['rate'] }}%</td>
                         </tr>
                     @empty
@@ -44,15 +44,15 @@
         </section>
 
         <section class="panel">
-            <h3 class="text-lg font-semibold text-white">Response rate by source</h3>
-            <p class="mt-1 mb-4 text-sm text-slate-400">Compare how different lead sources convert.</p>
+            <h3 class="text-lg font-semibold text-white">Reply rate by source</h3>
+            <p class="mt-1 mb-4 text-sm text-slate-400">Compare which lead sources get actual email replies.</p>
 
             <x-data-table>
                 <thead>
                     <tr>
                         <th>Source</th>
-                        <th>Responses</th>
-                        <th>Interactions</th>
+                        <th>Replies</th>
+                        <th>Sent threads</th>
                         <th>Rate</th>
                     </tr>
                 </thead>
@@ -60,8 +60,8 @@
                     @forelse ($responseBySource as $row)
                         <tr>
                             <td class="font-medium text-white">{{ $row['label'] }}</td>
-                            <td>{{ $row['responses'] }}</td>
-                            <td>{{ $row['interactions'] }}</td>
+                            <td>{{ $row['replies'] }}</td>
+                            <td>{{ $row['threads'] }}</td>
                             <td class="text-sky-300 font-semibold">{{ $row['rate'] }}%</td>
                         </tr>
                     @empty

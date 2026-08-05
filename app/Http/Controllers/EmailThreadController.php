@@ -296,12 +296,13 @@ class EmailThreadController extends Controller
     }
 
     /**
-     * @return array{total: int, unread: int, awaiting_reply: int, responded: int, opened: int}
+     * @return array{total: int, contacts: int, unread: int, awaiting_reply: int, responded: int, opened: int}
      */
     protected function inboxStats(): array
     {
         return [
             'total' => EmailThread::query()->count(),
+            'contacts' => (int) EmailThread::query()->distinct()->count('contact_id'),
             'unread' => EmailThread::query()->where('has_unread', true)->count(),
             'awaiting_reply' => EmailThread::query()
                 ->where('status', EmailThreadStatus::AwaitingReply->value)

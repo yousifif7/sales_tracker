@@ -36,4 +36,9 @@ class Campaign extends Model
     {
         return $this->hasMany(Interaction::class);
     }
+
+    public function emailThreads(): HasMany
+    {
+        return $this->hasMany(EmailThread::class);
+    }
 }

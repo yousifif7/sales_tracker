@@ -73,13 +73,25 @@
         .prose-email table { max-width: 100%; margin: 0 0 0.75rem; text-align: left; }
         .prose-email td, .prose-email th { vertical-align: top; }
         .prose-email img { display: inline-block; height: auto; max-width: 100%; vertical-align: middle; }
-        [data-sidebar-rail] { width: 18rem; transition: width 0.2s ease; }
+        [data-sidebar-rail] { position: fixed; inset: 0 auto 0 0; height: 100vh; width: 18rem; transition: width 0.2s ease; }
         [data-sidebar-rail].sidebar-peek,
         [data-sidebar-rail]:not(.sidebar-collapsed) { z-index: 50; }
         [data-sidebar-rail].sidebar-collapsed { width: 5rem; }
-        [data-sidebar-rail] [data-desktop-sidebar] { position: sticky; top: 0; height: 100vh; width: 18rem; background-color: rgb(2 6 23); }
-        [data-sidebar-rail].sidebar-collapsed [data-desktop-sidebar] { position: absolute; top: 0; bottom: 0; left: 0; z-index: 30; width: 5rem; padding-left: 0.75rem; padding-right: 0.75rem; box-shadow: none; overflow-y: auto; }
-        [data-sidebar-rail].sidebar-collapsed.sidebar-peek [data-desktop-sidebar] { width: 18rem; padding-left: 1.5rem; padding-right: 1.5rem; border-right-color: rgb(51 65 85); border-top-right-radius: 1.5rem; border-bottom-right-radius: 1.5rem; box-shadow: 16px 0 30px -18px rgba(2, 6, 23, 0.9); }
+        [data-sidebar-rail] + main { margin-left: 18rem; transition: margin-left 0.2s ease; }
+        [data-sidebar-rail].sidebar-collapsed + main { margin-left: 5rem; }
+        [data-sidebar-rail] [data-desktop-sidebar] {
+            display: flex; height: 100%; width: 100%;
+            flex-direction: column; overflow: hidden; background-color: rgb(2 6 23);
+        }
+        [data-sidebar-rail] [data-desktop-sidebar] nav { scrollbar-width: thin; scrollbar-color: rgb(51 65 85) transparent; overscroll-behavior: contain; }
+        [data-sidebar-rail] [data-desktop-sidebar] nav::-webkit-scrollbar { width: 6px; height: 0; }
+        [data-sidebar-rail] [data-desktop-sidebar] nav::-webkit-scrollbar:horizontal { display: none; height: 0; }
+        [data-sidebar-rail] [data-desktop-sidebar] nav::-webkit-scrollbar-thumb { background: rgb(51 65 85); border-radius: 9999px; }
+        [data-sidebar-rail].sidebar-collapsed [data-desktop-sidebar] { width: 5rem; padding-left: 0.75rem; padding-right: 0.75rem; box-shadow: none; }
+        [data-sidebar-rail].sidebar-collapsed.sidebar-peek [data-desktop-sidebar] {
+            width: 18rem; padding-left: 1.5rem; padding-right: 1.5rem; border-right-color: rgb(51 65 85);
+            border-top-right-radius: 1.5rem; border-bottom-right-radius: 1.5rem; box-shadow: 16px 0 30px -18px rgba(2, 6, 23, 0.9);
+        }
         [data-sidebar-rail].sidebar-collapsed .sidebar-brand,
         [data-sidebar-rail].sidebar-collapsed .sidebar-nav-label,
         [data-sidebar-rail].sidebar-collapsed .sidebar-user-name,
@@ -94,6 +106,7 @@
         [data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-header { justify-content: space-between; }
         [data-sidebar-rail].sidebar-collapsed .sidebar-nav-link { justify-content: center; padding-left: 0.5rem; padding-right: 0.5rem; }
         [data-sidebar-rail].sidebar-collapsed.sidebar-peek .sidebar-nav-link { justify-content: flex-start; padding-left: 1rem; padding-right: 1rem; }
+        [data-sidebar-rail].sidebar-collapsed .sidebar-toggle { margin-left: 0; }
         [data-sidebar-rail].sidebar-collapsed .sidebar-toggle-icon { transform: rotate(180deg); }
     </style>
     <script>
@@ -121,11 +134,15 @@
 
             var sidebarRail = document.querySelector('[data-sidebar-rail]');
             var sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+            var desktopMain = document.querySelector('[data-desktop-main]');
             var sidebarStorageKey = 'crm-sidebar-collapsed';
             if (sidebarRail && sidebarToggle) {
                 var setCollapsed = function (collapsed) {
+                    var sidebarWidth = collapsed ? '5rem' : '18rem';
                     sidebarRail.classList.toggle('sidebar-collapsed', collapsed);
                     sidebarRail.classList.remove('sidebar-peek');
+                    sidebarRail.style.width = sidebarWidth;
+                    if (desktopMain) desktopMain.style.marginLeft = sidebarWidth;
                     sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
                     sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
                     sidebarToggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');

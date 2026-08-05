@@ -219,6 +219,9 @@
 
 /* Desktop CRM sidebar collapse / hover-expand */
 [data-sidebar-rail] {
+    position: fixed;
+    inset: 0 auto 0 0;
+    height: 100vh;
     width: 18rem;
     transition: width 0.2s ease;
 }
@@ -232,25 +235,50 @@
     width: 5rem;
 }
 
+[data-sidebar-rail] + main {
+    margin-left: 18rem;
+    transition: margin-left 0.2s ease;
+}
+
+[data-sidebar-rail].sidebar-collapsed + main {
+    margin-left: 5rem;
+}
+
 [data-sidebar-rail] [data-desktop-sidebar] {
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    width: 18rem;
+    display: flex;
+    height: 100%;
+    width: 100%;
+    flex-direction: column;
+    overflow: hidden;
     background-color: rgb(2 6 23);
 }
 
+[data-sidebar-rail] [data-desktop-sidebar] nav {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(51 65 85) transparent;
+    overscroll-behavior: contain;
+}
+
+[data-sidebar-rail] [data-desktop-sidebar] nav::-webkit-scrollbar {
+    width: 6px;
+    height: 0;
+}
+
+[data-sidebar-rail] [data-desktop-sidebar] nav::-webkit-scrollbar:horizontal {
+    display: none;
+    height: 0;
+}
+
+[data-sidebar-rail] [data-desktop-sidebar] nav::-webkit-scrollbar-thumb {
+    background: rgb(51 65 85);
+    border-radius: 9999px;
+}
+
 [data-sidebar-rail].sidebar-collapsed [data-desktop-sidebar] {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 30;
     width: 5rem;
     padding-left: 0.75rem;
     padding-right: 0.75rem;
     box-shadow: none;
-    overflow-y: auto;
 }
 
 [data-sidebar-rail].sidebar-collapsed.sidebar-peek [data-desktop-sidebar] {
@@ -300,6 +328,10 @@
     justify-content: flex-start;
     padding-left: 1rem;
     padding-right: 1rem;
+}
+
+[data-sidebar-rail].sidebar-collapsed .sidebar-toggle {
+    margin-left: 0;
 }
 
 [data-sidebar-rail].sidebar-collapsed .sidebar-toggle-icon {

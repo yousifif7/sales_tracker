@@ -101,32 +101,32 @@
                 </div>
             </aside>
 
-            <div class="relative z-30 hidden shrink-0 self-start lg:sticky lg:top-0 lg:block lg:h-screen" data-sidebar-rail>
+            <div class="fixed inset-y-0 left-0 z-30 hidden lg:block" data-sidebar-rail>
                 <aside
-                    class="relative flex h-full w-72 flex-col overflow-x-visible overflow-y-auto border-r border-slate-800 bg-slate-950 p-6 transition-[width] duration-200"
+                    class="flex h-full w-72 flex-col overflow-hidden border-r border-slate-800 bg-slate-950 p-6 transition-[width] duration-200"
                     data-desktop-sidebar
                 >
-                    <button
-                        type="button"
-                        class="sidebar-toggle absolute right-0 top-6 z-40 hidden -translate-y-1/2 translate-x-1/2 rounded-full border border-slate-700 bg-slate-950 p-2 text-slate-300 shadow-lg shadow-slate-950/60 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white lg:inline-flex"
-                        data-sidebar-toggle
-                        aria-expanded="true"
-                        aria-label="Collapse sidebar"
-                        title="Collapse sidebar"
-                    >
-                        <svg class="sidebar-toggle-icon h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                            <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
-                    <div class="sidebar-header flex items-start gap-3">
+                    <div class="sidebar-header flex items-start justify-between gap-3">
                         <div class="sidebar-brand min-w-0 space-y-1">
                             <p class="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300">Sales Tracker</p>
                             <h1 class="sidebar-brand-title text-2xl font-semibold text-white">Outreach CRM</h1>
                             <p class="sidebar-brand-copy text-sm text-slate-400">Multi-user CRM with roles and configurable permissions.</p>
                         </div>
+                        <button
+                            type="button"
+                            class="sidebar-toggle inline-flex shrink-0 rounded-full border border-slate-700 bg-slate-950 p-2 text-slate-300 shadow-lg shadow-slate-950/60 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+                            data-sidebar-toggle
+                            aria-expanded="true"
+                            aria-label="Collapse sidebar"
+                            title="Collapse sidebar"
+                        >
+                            <svg class="sidebar-toggle-icon h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
                     </div>
 
-                    <nav class="mt-8 space-y-2 text-sm">
+                    <nav class="mt-8 min-h-0 flex-1 space-y-2 overflow-x-hidden overflow-y-auto pr-1 text-sm">
                         @foreach ($navItems as $item)
                             @can($item['permission'])
                                 @php
@@ -153,7 +153,7 @@
                         @endforeach
                     </nav>
 
-                    <div class="sidebar-user mt-auto border-t border-slate-800 pt-6">
+                    <div class="sidebar-user mt-auto shrink-0 border-t border-slate-800 pt-6">
                         <p class="sidebar-user-name text-sm font-medium text-white">{{ auth()->user()->name }}</p>
                         <p class="sidebar-user-role text-xs text-slate-400">{{ auth()->user()->roles->pluck('name')->implode(', ') ?: 'No role' }}</p>
                         <form method="post" action="{{ route('logout') }}" class="sidebar-logout mt-4">
@@ -164,7 +164,7 @@
                 </aside>
             </div>
 
-            <main class="min-w-0 flex-1">
+            <main class="min-w-0 flex-1 lg:ml-72" data-desktop-main>
                 <header class="border-b border-slate-800 bg-slate-950/80 px-4 py-4 backdrop-blur sm:px-6 lg:px-10">
                     <div class="mb-4 flex items-center justify-between gap-3 lg:hidden">
                         <button

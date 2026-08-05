@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Contact extends Model
 {
@@ -111,6 +112,11 @@ class Contact extends Model
     public function emailThreads(): HasMany
     {
         return $this->hasMany(EmailThread::class)->latest('last_message_at');
+    }
+
+    public function emailMessages(): HasManyThrough
+    {
+        return $this->hasManyThrough(EmailMessage::class, EmailThread::class);
     }
 
     public function tags(): BelongsToMany

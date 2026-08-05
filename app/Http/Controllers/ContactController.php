@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\ContactSource;
 use App\Enums\ContactStatus;
+use App\Enums\EmailDeliveryStatus;
+use App\Enums\EmailMessageDirection;
 use App\Http\Requests\ContactRequest;
 use App\Models\Contact;
 use App\Models\Tag;
@@ -11,6 +13,7 @@ use App\Support\Permissions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ContactController extends Controller
@@ -19,8 +22,17 @@ class ContactController extends Controller
     {
         $this->authorizePermission(Permissions::CONTACTS_VIEW);
 
+        $firstEmailFrom = $this->resolveDateFilter($request->input('first_email_from'));
+        $firstEmailTo = $this->resolveDateFilter($request->input('first_email_to'));
+        $lastEmailFrom = $this->resolveDateFilter($request->input('last_email_from'));
+        $lastEmailTo = $this->resolveDateFilter($request->input('last_email_to'));
+        $emailed = $request->string('emailed')->toString();
+
         $contacts = Contact::query()
             ->with('tags')
+            ->select('contacts.*')
+            ->selectSub($this->outboundEmailDateSubquery('min'), 'first_emailed_at')
+            ->selectSub($this->outboundEmailDateSubquery('max'), 'last_emailed_at')
             ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')))
             ->when($request->filled('source'), fn (Builder $query) => $query->where('source', $request->string('source')))
             ->when($request->filled('tag'), fn (Builder $query) => $query->whereHas('tags', fn (Builder $tagQuery) => $tagQuery->where('name', $request->string('tag'))))
@@ -34,8 +46,36 @@ class ContactController extends Controller
                         ->orWhere('email', 'like', $search);
                 });
             })
+            ->when($emailed === 'never', fn (Builder $query) => $query->whereDoesntHave(
+                'emailMessages',
+                fn (Builder $messageQuery) => $messageQuery
+                    ->where('email_messages.direction', EmailMessageDirection::Outbound->value)
+                    ->where('email_messages.delivery_status', EmailDeliveryStatus::Sent->value),
+            ))
+            ->when($emailed === 'yes', fn (Builder $query) => $query->whereHas(
+                'emailMessages',
+                fn (Builder $messageQuery) => $messageQuery
+                    ->where('email_messages.direction', EmailMessageDirection::Outbound->value)
+                    ->where('email_messages.delivery_status', EmailDeliveryStatus::Sent->value),
+            ))
+            ->when($firstEmailFrom, function (Builder $query) use ($firstEmailFrom): void {
+                $sub = $this->outboundEmailDateSubquery('min');
+                $query->whereRaw('DATE(('.$sub->toSql().')) >= ?', [...$sub->getBindings(), $firstEmailFrom]);
+            })
+            ->when($firstEmailTo, function (Builder $query) use ($firstEmailTo): void {
+                $sub = $this->outboundEmailDateSubquery('min');
+                $query->whereRaw('DATE(('.$sub->toSql().')) <= ?', [...$sub->getBindings(), $firstEmailTo]);
+            })
+            ->when($lastEmailFrom, function (Builder $query) use ($lastEmailFrom): void {
+                $sub = $this->outboundEmailDateSubquery('max');
+                $query->whereRaw('DATE(('.$sub->toSql().')) >= ?', [...$sub->getBindings(), $lastEmailFrom]);
+            })
+            ->when($lastEmailTo, function (Builder $query) use ($lastEmailTo): void {
+                $sub = $this->outboundEmailDateSubquery('max');
+                $query->whereRaw('DATE(('.$sub->toSql().')) <= ?', [...$sub->getBindings(), $lastEmailTo]);
+            })
             ->latest()
-            ->paginate(12)
+            ->paginate(50)
             ->withQueryString();
 
         return view('contacts.index', [
@@ -43,7 +83,39 @@ class ContactController extends Controller
             'statusOptions' => ContactStatus::options(),
             'sourceOptions' => ContactSource::options(),
             'tags' => Tag::query()->orderBy('name')->get(),
+            'firstEmailFrom' => $firstEmailFrom,
+            'firstEmailTo' => $firstEmailTo,
+            'lastEmailFrom' => $lastEmailFrom,
+            'lastEmailTo' => $lastEmailTo,
+            'emailed' => $emailed,
         ]);
+    }
+
+    /**
+     * Earliest/latest successful outbound email date for a contact.
+     */
+    protected function outboundEmailDateSubquery(string $aggregate): \Illuminate\Database\Query\Builder
+    {
+        $aggregate = strtolower($aggregate) === 'max' ? 'max' : 'min';
+
+        return DB::table('email_messages')
+            ->join('email_threads', 'email_threads.id', '=', 'email_messages.email_thread_id')
+            ->whereColumn('email_threads.contact_id', 'contacts.id')
+            ->whereNull('email_threads.deleted_at')
+            ->where('email_messages.direction', EmailMessageDirection::Outbound->value)
+            ->where('email_messages.delivery_status', EmailDeliveryStatus::Sent->value)
+            ->selectRaw($aggregate.'(email_messages.sent_at)');
+    }
+
+    protected function resolveDateFilter(mixed $value): ?string
+    {
+        $date = is_string($value) ? trim($value) : '';
+
+        if ($date === '' || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return null;
+        }
+
+        return $date;
     }
 
     public function create(): View
@@ -128,6 +200,27 @@ class ContactController extends Controller
         return redirect()
             ->route('contacts.index')
             ->with('status', 'Contact deleted successfully.');
+    }
+
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $this->authorizePermission(Permissions::CONTACTS_DELETE);
+
+        $validated = $request->validate([
+            'contact_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'contact_ids.*' => ['integer', 'distinct', 'exists:contacts,id'],
+        ]);
+
+        $ids = $validated['contact_ids'];
+        $count = Contact::query()->whereIn('id', $ids)->count();
+
+        Contact::query()->whereIn('id', $ids)->delete();
+
+        return redirect()
+            ->route('contacts.index')
+            ->with('status', $count === 1
+                ? '1 contact deleted.'
+                : "{$count} contacts deleted.");
     }
 
     protected function syncTags(Contact $contact, ?string $tags): void

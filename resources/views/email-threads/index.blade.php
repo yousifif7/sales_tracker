@@ -3,11 +3,15 @@
         $hasActiveFilters = request()->hasAny(['status', 'unread', 'responded', 'opened', 'search', 'date_from', 'date_to', 'created_from', 'created_to']);
     @endphp
 
-    <div class="mb-4 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
+    <div class="mb-4 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <a href="{{ route('email-threads.index', ['reset' => 1]) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => ! $hasActiveFilters])>
             <p class="text-xs text-slate-400">Total threads</p>
             <p class="mt-0.5 text-lg font-semibold text-white">{{ $stats['total'] }}</p>
         </a>
+        <div class="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+            <p class="text-xs text-slate-400">Contacts</p>
+            <p class="mt-0.5 text-lg font-semibold text-white">{{ $stats['contacts'] }}</p>
+        </div>
         <a href="{{ route('email-threads.index', ['unread' => 1]) }}" @class(['rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 transition hover:border-slate-600', 'ring-1 ring-sky-500/40' => request('unread') === '1' && ! request()->hasAny(['status', 'responded', 'opened', 'search', 'date_from', 'date_to', 'created_from', 'created_to'])])>
             <p class="text-xs text-slate-400">Unread replies</p>
             <p class="mt-0.5 text-lg font-semibold text-sky-300">{{ $stats['unread'] }}</p>

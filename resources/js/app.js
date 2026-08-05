@@ -24,12 +24,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const sidebarRail = document.querySelector('[data-sidebar-rail]');
     const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+    const desktopMain = document.querySelector('[data-desktop-main]');
     const sidebarStorageKey = 'crm-sidebar-collapsed';
 
     if (sidebarRail && sidebarToggle) {
         const setCollapsed = (collapsed) => {
+            const sidebarWidth = collapsed ? '5rem' : '18rem';
+
             sidebarRail.classList.toggle('sidebar-collapsed', collapsed);
             sidebarRail.classList.remove('sidebar-peek');
+            sidebarRail.style.width = sidebarWidth;
+            if (desktopMain) {
+                desktopMain.style.marginLeft = sidebarWidth;
+            }
             sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
             sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
             sidebarToggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
