@@ -26,20 +26,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
     const desktopMain = document.querySelector('[data-desktop-main]');
     const sidebarStorageKey = 'crm-sidebar-collapsed';
+    const desktopSidebarMedia = window.matchMedia('(min-width: 1024px)');
 
     if (sidebarRail && sidebarToggle) {
-        const setCollapsed = (collapsed) => {
+        const applyDesktopSidebarLayout = (collapsed) => {
             const sidebarWidth = collapsed ? '5rem' : '18rem';
 
             sidebarRail.classList.toggle('sidebar-collapsed', collapsed);
             sidebarRail.classList.remove('sidebar-peek');
-            sidebarRail.style.width = sidebarWidth;
-            if (desktopMain) {
-                desktopMain.style.marginLeft = sidebarWidth;
+
+            if (desktopSidebarMedia.matches) {
+                sidebarRail.style.width = sidebarWidth;
+                if (desktopMain) {
+                    desktopMain.style.marginLeft = sidebarWidth;
+                }
+            } else {
+                sidebarRail.style.width = '';
+                if (desktopMain) {
+                    desktopMain.style.marginLeft = '';
+                }
             }
+
             sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
             sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
             sidebarToggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        };
+
+        const setCollapsed = (collapsed) => {
+            applyDesktopSidebarLayout(collapsed);
             window.localStorage.setItem(sidebarStorageKey, collapsed ? '1' : '0');
         };
 
@@ -56,6 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         sidebarRail.addEventListener('mouseenter', () => setPeek(true));
         sidebarRail.addEventListener('mouseleave', () => setPeek(false));
+        desktopSidebarMedia.addEventListener('change', () => {
+            applyDesktopSidebarLayout(window.localStorage.getItem(sidebarStorageKey) === '1');
+        });
     }
 
     document.querySelectorAll('[data-rich-editor]').forEach((root) => {

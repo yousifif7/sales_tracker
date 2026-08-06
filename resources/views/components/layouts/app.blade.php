@@ -165,7 +165,7 @@
             </div>
 
             <main class="min-w-0 flex-1 lg:ml-72" data-desktop-main>
-                <header class="border-b border-slate-800 bg-slate-950/80 px-4 py-4 backdrop-blur sm:px-6 lg:px-10">
+                <header class="border-b border-slate-800 bg-slate-950/80 px-3 py-4 backdrop-blur sm:px-6 lg:px-10">
                     <div class="mb-4 flex items-center justify-between gap-3 lg:hidden">
                         <button
                             type="button"
@@ -202,7 +202,7 @@
                     </div>
                 </header>
 
-                <div class="px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
+                <div class="px-3 py-4 sm:px-6 sm:py-6 lg:px-10">
                     @if (session('status'))
                         <div class="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
                             {{ session('status') }}
@@ -224,5 +224,26 @@
                 </div>
             </main>
         </div>
+        <script>
+            (function () {
+                var syncMobileMainLayout = function () {
+                    var desktopMain = document.querySelector('[data-desktop-main]');
+                    if (!desktopMain) return;
+
+                    if (window.innerWidth < 1024) {
+                        desktopMain.style.marginLeft = '0';
+                        desktopMain.style.width = '100%';
+                        desktopMain.style.maxWidth = '100vw';
+                    } else {
+                        desktopMain.style.width = '';
+                        desktopMain.style.maxWidth = '';
+                    }
+                };
+
+                syncMobileMainLayout();
+                window.addEventListener('load', syncMobileMainLayout);
+                window.addEventListener('resize', syncMobileMainLayout);
+            })();
+        </script>
     </body>
 </html>
