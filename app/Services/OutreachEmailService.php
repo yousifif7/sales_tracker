@@ -171,12 +171,17 @@ class OutreachEmailService
 
     public function normalizeSubject(string $subject): string
     {
-        $subject = preg_replace('/^(re|fwd|fw)\s*:\s*/i', '', trim($subject)) ?? trim($subject);
+        return strtolower($this->stripSubjectPrefixes($subject));
+    }
+
+    public function stripSubjectPrefixes(string $subject): string
+    {
+        $subject = trim($subject);
 
         while (preg_match('/^(re|fwd|fw)\s*:\s*/i', $subject)) {
             $subject = preg_replace('/^(re|fwd|fw)\s*:\s*/i', '', $subject) ?? $subject;
         }
 
-        return strtolower(trim($subject));
+        return trim($subject);
     }
 }

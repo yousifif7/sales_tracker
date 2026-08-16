@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\ContactStatus;
 use App\Enums\EmailMessageDirection;
+use App\Enums\EmailSequenceExitReason;
 use App\Enums\EmailThreadStatus;
 use App\Enums\InteractionChannel;
 use App\Enums\InteractionDirection;
@@ -241,6 +242,11 @@ class ImapInboxSyncService
                 $contact->update(['status' => ContactStatus::Responded]);
             }
         });
+
+        app(OutreachSequenceService::class)->completeForContact(
+            $contact,
+            EmailSequenceExitReason::Replied,
+        );
 
         return 'imported';
     }

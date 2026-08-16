@@ -9,6 +9,7 @@ use App\Jobs\SendOutreachEmailJob;
 use App\Models\Campaign;
 use App\Models\Contact;
 use App\Services\OutreachEmailService;
+use App\Services\OutreachSequenceService;
 use App\Support\CurrentUserResolver;
 use App\Support\OutreachTemplateRenderer;
 use App\Support\Permissions;
@@ -19,8 +20,11 @@ use Throwable;
 
 class ContactEmailController extends Controller
 {
-    public function create(Contact $contact, OutreachTemplateRenderer $templates): View
-    {
+    public function create(
+        Contact $contact,
+        OutreachTemplateRenderer $templates,
+        OutreachSequenceService $sequences,
+    ): View {
         $this->authorizePermission(Permissions::EMAILS_SEND);
 
         abort_unless(filled($contact->email), 422, 'This contact has no email address.');
@@ -30,6 +34,8 @@ class ContactEmailController extends Controller
             ? $templates->render((string) $templateKey, $contact)
             : ['subject' => old('subject', ''), 'body' => old('body', '')];
 
+        $hasActiveSequence = (bool) $sequences->activeEnrollmentFor($contact);
+
         return view('contacts.email', [
             'contact' => $contact,
             'campaigns' => Campaign::query()->orderBy('name')->get(),
@@ -37,6 +43,8 @@ class ContactEmailController extends Controller
             'selectedTemplate' => $templateKey,
             'subject' => old('subject', $rendered['subject']),
             'body' => old('body', $rendered['body']),
+            'enrollInSequence' => old('enroll_in_sequence', ! $hasActiveSequence),
+            'hasActiveSequence' => $hasActiveSequence,
         ]);
     }
 
@@ -45,18 +53,23 @@ class ContactEmailController extends Controller
         Contact $contact,
         CurrentUserResolver $currentUserResolver,
         OutreachEmailService $outreachEmailService,
+        OutreachSequenceService $sequences,
     ): RedirectResponse {
         $this->authorizePermission(Permissions::EMAILS_SEND);
 
         abort_unless(filled($contact->email), 422, 'This contact has no email address.');
+
+        $userId = $currentUserResolver->id();
+        $campaignId = $request->validated('campaign_id');
+        $enroll = $request->boolean('enroll_in_sequence');
 
         try {
             $result = $outreachEmailService->send(
                 contact: $contact,
                 subject: $request->validated('subject'),
                 bodyHtml: $request->validated('body'),
-                campaignId: $request->validated('campaign_id'),
-                userId: $currentUserResolver->id(),
+                campaignId: $campaignId,
+                userId: $userId,
             );
         } catch (Throwable $exception) {
             report($exception);
@@ -66,9 +79,25 @@ class ContactEmailController extends Controller
                 ->withErrors(['email' => 'SMTP send failed: '.$exception->getMessage()]);
         }
 
+        $status = "Email sent to {$contact->email}. Tracking Sent / Opened / Responded on this thread.";
+
+        if ($enroll) {
+            $enrollment = $sequences->enroll(
+                contact: $contact,
+                thread: $result['thread'],
+                coldMessage: $result['message'],
+                campaignId: $campaignId,
+                userId: $userId,
+            );
+
+            $status .= $enrollment
+                ? ' Enrolled in follow-up sequence (business days 4 / 8 / 15).'
+                : ' Already in an active sequence — enrollment skipped.';
+        }
+
         return redirect()
             ->route('email-threads.show', $result['thread'])
-            ->with('status', "Email sent to {$contact->email}. Tracking Sent / Opened / Responded on this thread.");
+            ->with('status', $status);
     }
 
     public function createBulk(
@@ -98,6 +127,7 @@ class ContactEmailController extends Controller
             'selectedTemplate' => $templateKey,
             'subject' => old('subject', $raw['subject']),
             'body' => old('body', $raw['body']),
+            'enrollInSequence' => old('enroll_in_sequence', true),
         ]);
     }
 
@@ -119,6 +149,7 @@ class ContactEmailController extends Controller
         $body = $request->validated('body');
         $campaignId = $request->validated('campaign_id');
         $userId = $currentUserResolver->id();
+        $enroll = $request->boolean('enroll_in_sequence');
         $delaySeconds = 0;
 
         foreach ($recipients as $contact) {
@@ -128,13 +159,18 @@ class ContactEmailController extends Controller
                 bodyHtml: $body,
                 campaignId: $campaignId,
                 userId: $userId,
+                enrollInSequence: $enroll,
             )->delay(now()->addSeconds($delaySeconds));
 
             $delaySeconds += 3;
         }
 
         $queued = $recipients->count();
-        $message = "Queued {$queued} follow-up ".str('email')->plural($queued).'.';
+        $message = "Queued {$queued} ".str('email')->plural($queued).'.';
+
+        if ($enroll) {
+            $message .= ' Sequence enrollment on for follow-ups (business days 4 / 8 / 15).';
+        }
 
         if ($skippedCount > 0) {
             $message .= " ({$skippedCount} skipped: no email).";

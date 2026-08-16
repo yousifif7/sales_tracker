@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ContactEmailController;
+use App\Http\Controllers\ContactSequenceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\EmailThreadController;
@@ -44,10 +45,12 @@ Route::middleware('auth')->group(function (): void {
 
     Route::resource('contacts', ContactController::class);
     Route::post('contacts/bulk-destroy', [ContactController::class, 'bulkDestroy'])->name('contacts.bulk-destroy');
+    Route::post('contacts/bulk-status', [ContactController::class, 'bulkStatus'])->name('contacts.bulk-status');
     Route::post('contacts/email/bulk', [ContactEmailController::class, 'createBulk'])->name('contacts.email.bulk.create');
     Route::post('contacts/email/bulk/send', [ContactEmailController::class, 'storeBulk'])->name('contacts.email.bulk.store');
     Route::get('contacts/{contact}/email', [ContactEmailController::class, 'create'])->name('contacts.email.create');
     Route::post('contacts/{contact}/email', [ContactEmailController::class, 'store'])->name('contacts.email.store');
+    Route::post('contacts/{contact}/sequence/cancel', [ContactSequenceController::class, 'cancel'])->name('contacts.sequence.cancel');
     Route::resource('email-templates', EmailTemplateController::class)->except(['show']);
     Route::resource('lead-search-presets', LeadSearchPresetController::class)->except(['show']);
     Route::get('inbox', [EmailThreadController::class, 'index'])->name('email-threads.index');

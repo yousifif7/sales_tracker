@@ -8,9 +8,134 @@ return [
         'email' => env('OUTREACH_SIGNATURE_EMAIL', env('MAIL_FROM_ADDRESS', 'yousif@yousiffarra.com')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Automated outreach sequence (UK business days)
+    |--------------------------------------------------------------------------
+    |
+    | Cold email is sent manually. Follow-up / nudge / exit are scheduled from
+    | enrolled_at using Mon–Fri only (Europe/London by default).
+    |
+    */
+    'sequence' => [
+        'timezone' => env('OUTREACH_SEQUENCE_TIMEZONE', 'Europe/London'),
+        'send_hour' => (int) env('OUTREACH_SEQUENCE_SEND_HOUR', 9),
+        'followup_business_days' => 4,
+        'nudge_business_days' => 8,
+        'exit_business_days' => 15,
+        'followup_template' => 'fieldline_followup',
+        'nudge_template' => 'fieldline_final_nudge',
+        'hot_open_min_total_opens' => 5,
+        'hot_open_min_unique_emails' => 2,
+    ],
+
     'templates' => [
         'fieldline_cold' => [
-            'label' => 'FieldLine — cold email',
+            'label' => 'FieldLine — own vs rent (cold)',
+            'active' => true,
+            'subject' => 'Own vs rent — control room for {{company}}',
+            'body' => <<<'BODY'
+Hi {{first_name}},
+
+Most UK guarding firms rent their control-room software every month. FieldLine is different — a white-label platform you own: live GPS, rota, digital DOB, incidents, client portal, and a guard app.
+
+Demo: https://fieldline.yousiffarra.com
+
+If that sounds useful for {{company}}, reply with a time that works for a 15-min video walkthrough.
+
+Best,
+Yousif Elfarra
+BODY,
+        ],
+        'fieldline_followup' => [
+            'label' => 'FieldLine — follow-up (3 days)',
+            'active' => true,
+            'subject' => 'Re: Own vs rent — control room for {{company}}',
+            'body' => <<<'BODY'
+Hi {{first_name}},
+
+Quick bump in case this got buried.
+
+A lot of multi-site firms I speak to are still running shifts on WhatsApp and incidents on paper. FieldLine puts tracking, DOB, and client reporting into one control room you own — not a monthly SaaS rent.
+
+Demo: https://fieldline.yousiffarra.com
+
+Worth a 15-min video look for {{company}}? Reply with a time that works.
+
+Best,
+Yousif
+BODY,
+        ],
+        'fieldline_final_nudge' => [
+            'label' => 'FieldLine — final nudge (7 days)',
+            'active' => true,
+            'subject' => 'Re: Own vs rent — control room for {{company}}',
+            'body' => <<<'BODY'
+Hi {{first_name}},
+
+Last note from me.
+
+FieldLine is a one-time white-label license (typically around the $10k mark depending on scope), not another monthly control-room subscription. Happy to show the live demo on a short video call — or reply "call" and we can arrange it.
+
+If now isn't the right time, no worries at all.
+
+https://fieldline.yousiffarra.com
+
+Best,
+Yousif
+BODY,
+        ],
+        'fieldline_attention' => [
+            'label' => 'General Attention email',
+            'active' => true,
+            'subject' => 'For ops / MD — control room software for {{company}}',
+            'body' => <<<'BODY'
+Hi,
+
+Could you please forward this to whoever handles ops / control room systems at {{company}}?
+
+I've built FieldLine — a white-label security control room + guard app (live GPS, rota, digital DOB, incidents, client portal) that firms own instead of renting monthly SaaS.
+
+Demo: https://fieldline.yousiffarra.com
+
+Happy to do a 15-min video walkthrough if useful.
+
+Thanks,
+Yousif Elfarra
+BODY,
+        ],
+        'fieldline_multi_site' => [
+            'label' => 'FieldLine — multi-site',
+            'active' => true,
+            'subject' => '{{company}} — ops visibility across your sites',
+            'body' => <<<'BODY'
+Hi {{first_name}},
+
+Quick question for {{company}}: with guards across multiple sites, how does ops currently verify patrols happened — and how do clients get that evidence? Real-time, or end-of-shift / WhatsApp summaries?
+
+FieldLine is a white-label control room you own: live GPS, rota, digital DOB, incident reports, exports, and a client portal — plus a guard app for check-ins and patrols.
+
+Demo: https://fieldline.yousiffarra.com
+
+Reply with a time for a 15-min video walkthrough if useful.
+
+Best,
+Yousif Elfarra
+BODY,
+        ],
+        'fieldline_linkedin' => [
+            'label' => 'LinkedIn Connect',
+            'active' => true,
+            'subject' => 'LinkedIn note — {{company}}',
+            'body' => <<<'BODY'
+Hi {{first_name}}, — built a white-label control room + guard app for UK multi-site guarding firms (own vs monthly SaaS rent). Demo: fieldline.yousiffarra.com — open to a short video walkthrough if useful?
+BODY,
+        ],
+
+        // Kept for history / one-offs — inactive by default.
+        'fieldline_cold_classic' => [
+            'label' => 'FieldLine — cold email (classic, inactive)',
+            'active' => false,
             'subject' => 'Control room platform for {{company}}',
             'body' => <<<'BODY'
 Hi {{first_name}},
@@ -26,7 +151,8 @@ Yousif Elfarra
 BODY,
         ],
         'spl_cold' => [
-            'label' => 'SPL Connect — cold email',
+            'label' => 'SPL Connect — cold email (inactive)',
+            'active' => false,
             'subject' => '{{company}} — white-label guard ops platform (ready to deploy)',
             'body' => <<<'BODY'
 Hi {{first_name}},
@@ -36,36 +162,22 @@ I built SPL Connect — a full security workforce platform already used by a UK 
 You license it white-label: your logo, your domain, your brand.
 Live in weeks, not a custom build from scratch.
 
-What you get:
-- Live GPS guard tracking for your ops / control room
-- Shift / site scheduling and rota
-- Incident reporting + Daily Occurrence Book
-- Check-calls, patrols, SIA / compliance documents
-- Report exports (Excel/PDF) your team can send to clients
-- Client portal (rota, sites, invoices under your brand)
-- REST APIs ready if you want a guard mobile app later
-- Full source code available — you own your copy
-
 Demo: https://splconnect.yousiffarra.com
 
 If it looks relevant, happy to do a quick 15-min call to see if it fits how {{company}} runs sites today.
 
 Best,
 Yousif Elfarra
-yousiffarra.com
 BODY,
         ],
         'spl_followup_3d' => [
-            'label' => 'SPL Connect — follow-up (3 days)',
+            'label' => 'SPL Connect — follow-up (inactive)',
+            'active' => false,
             'subject' => 'Re: {{company}} — quick follow-up',
             'body' => <<<'BODY'
 Hi {{first_name}},
 
 Just bumping this in case it landed at a busy time.
-
-A lot of firms I speak to are still running shifts on WhatsApp and incidents on paper. The short demo shows how one UK firm put tracking, incidents, and client reporting into one control room.
-
-Happy to walk you through it if useful — no pressure either way.
 
 Demo: https://splconnect.yousiffarra.com
 
@@ -74,16 +186,13 @@ Yousif
 BODY,
         ],
         'spl_followup_7d' => [
-            'label' => 'SPL Connect — final nudge (7 days)',
+            'label' => 'SPL Connect — final nudge (inactive)',
+            'active' => false,
             'subject' => 'Re: {{company}} — last note',
             'body' => <<<'BODY'
 Hi {{first_name}},
 
-Last note from me — I recorded a short walkthrough of live guard tracking for ops teams, plus report exports you can send to clients, all under your own brand.
-
-No commitment. Just thought it might be useful for {{company}}.
-
-If now's not the time, totally fine.
+Last note from me.
 
 Demo: https://splconnect.yousiffarra.com
 
@@ -92,56 +201,29 @@ Yousif
 BODY,
         ],
         'glentworth_russ' => [
-            'label' => 'Priority — Russ Webster / Glentworth',
+            'label' => 'Priority — Russ Webster / Glentworth (inactive)',
+            'active' => false,
             'subject' => 'Quick idea for Glentworth\'s guard & incident reporting',
             'body' => <<<'BODY'
 Hi Russ,
 
-I came across Glentworth while looking at UK security firms and noticed the personal, tailored approach you've built since 2000 — that stood out.
-
-I'm a backend developer who built a guard management platform for a UK security company: live map tracking for the ops team, incident reports with photos/timestamps, and report exports you can send to clients. I'm now offering it white-label so other firms can run the same system without a TrackTik-style monthly subscription.
-
-Here's a short walkthrough — no pressure, just in case it helps how you currently handle reporting and oversight:
-
-https://splconnect.yousiffarra.com
-
-If it looks useful, happy to jump on 15 minutes and talk through what it would look like for Glentworth. If not, no worries at all.
-
-Appreciate you taking a look either way.
+Priority one-off template — prefer LinkedIn / personal follow-up now.
 
 Best,
-Yousif Elfarra
-yousif@yousiffarra.com
-yousiffarra.com
+Yousif
 BODY,
         ],
         'multi_site' => [
-            'label' => 'SPL — multi-site patrol visibility',
+            'label' => 'SPL — multi-site (inactive)',
+            'active' => false,
             'subject' => '{{company}} — ops visibility across your sites',
             'body' => <<<'BODY'
 Hi {{first_name}},
 
-I came across {{company}} while researching guard companies covering multiple sites. Impressive coverage.
-
-Quick question: with guards spread across that many locations, how does your ops team currently verify patrols happened — and how do clients get that evidence? Real-time updates, or end-of-shift / WhatsApp summaries?
-
-I built SPL Connect for a UK security firm managing guards across multiple sites. Before this, they used WhatsApp groups and paper logbooks. Now everything sits in one control room:
-
-• Live GPS tracking for your ops team
-• Shift / site scheduling and rota
-• Incident reporting + Daily Occurrence Book
-• Report exports (Excel/PDF) you can send to clients
-• Client portal — rota, sites, invoices under your brand
-
-It's white-label: your logo, your domain, your brand.
-
-Demo: https://splconnect.yousiffarra.com
-
-Are you open to a 15-minute call to see how it could work for {{company}}'s multi-site setup?
+Legacy SPL multi-site template — use FieldLine — multi-site instead.
 
 Best,
-Yousif Elfarra
-yousif@yousiffarra.com
+Yousif
 BODY,
         ],
     ],

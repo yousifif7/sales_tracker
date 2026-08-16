@@ -91,6 +91,24 @@
                 hint="Personalization tokens are filled per contact on send. Bold, italic, lists, and links are supported."
             />
 
+            <div class="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3">
+                <label class="flex items-start gap-3">
+                    <input
+                        type="checkbox"
+                        name="enroll_in_sequence"
+                        value="1"
+                        class="mt-1"
+                        @checked(old('enroll_in_sequence', $enrollInSequence ?? true))
+                    >
+                    <span>
+                        <span class="block text-sm font-medium text-slate-200">Enroll each contact in automated sequence</span>
+                        <span class="mt-1 block text-sm text-slate-400">
+                            Follow-up on business day 4, final nudge on day 8, exit on day 15. Skips contacts already in a sequence.
+                        </span>
+                    </span>
+                </label>
+            </div>
+
             <div class="flex flex-wrap gap-3">
                 <button class="btn-primary" type="submit">Queue {{ $recipients->count() }} {{ str('email')->plural($recipients->count()) }}</button>
                 <a class="btn-secondary" href="{{ route('contacts.index') }}">Cancel</a>

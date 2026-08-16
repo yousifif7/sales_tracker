@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Contact;
 use App\Services\OutreachEmailService;
+use App\Services\OutreachSequenceService;
 use App\Support\OutreachTemplateRenderer;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -23,12 +24,14 @@ class SendOutreachEmailJob implements ShouldQueue
         public string $bodyHtml,
         public ?int $campaignId = null,
         public ?int $userId = null,
+        public bool $enrollInSequence = false,
     ) {
     }
 
     public function handle(
         OutreachEmailService $outreachEmailService,
         OutreachTemplateRenderer $templates,
+        OutreachSequenceService $sequences,
     ): void {
         $contact = Contact::query()->find($this->contactId);
 
@@ -39,13 +42,23 @@ class SendOutreachEmailJob implements ShouldQueue
         $personalized = $templates->applyTokens($this->subject, $this->bodyHtml, $contact);
 
         try {
-            $outreachEmailService->send(
+            $result = $outreachEmailService->send(
                 contact: $contact,
                 subject: $personalized['subject'],
                 bodyHtml: $personalized['body'],
                 campaignId: $this->campaignId,
                 userId: $this->userId,
             );
+
+            if ($this->enrollInSequence) {
+                $sequences->enroll(
+                    contact: $contact,
+                    thread: $result['thread'],
+                    coldMessage: $result['message'],
+                    campaignId: $this->campaignId,
+                    userId: $this->userId,
+                );
+            }
         } catch (Throwable $exception) {
             report($exception);
 

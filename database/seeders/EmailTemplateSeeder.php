@@ -17,7 +17,7 @@ class EmailTemplateSeeder extends Seeder
                     'name' => $template['label'],
                     'subject' => $template['subject'],
                     'body' => HtmlContent::plainToHtml((string) $template['body']),
-                    'is_active' => true,
+                    'is_active' => (bool) ($template['active'] ?? true),
                 ],
             );
         }

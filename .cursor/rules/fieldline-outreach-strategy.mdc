@@ -1,0 +1,84 @@
+---
+description: FieldLine outreach strategy, ICP, channels, and weekly playbook for Sales Tracker
+alwaysApply: true
+---
+
+# FieldLine / Sales Tracker — Outreach Strategy
+
+## Product
+- **FieldLine**: white-label security control room + guard mobile app (live GPS, rota, incidents/DOB, client portal, exports, book on/off, patrols, check-calls).
+- Demo: https://fieldline.yousiffarra.com
+- Model: **one-time white-label license** (own), not monthly SaaS rent. Soft price signal ~$10k in late-sequence only.
+- Builder: Yousif Elfarra. Portfolio/blog: yousiffarra.com (Laravel / CRM case-study tone — no “stole client project” framing).
+
+## ICP (ideal)
+- UK **manned guarding / static multi-site** security firms
+- Roughly **12–90 guards**, owner/MD/ops/control-room decision-maker
+- Manual ops signals: WhatsApp, spreadsheets, paper DOB
+- Regions to rotate: South East / Home Counties, Midlands, North, Wales/Scotland; construction-site guarding as niche
+
+## Disqualify
+- Pure **keyholding / alarm-response** with little static multi-site work (NVC lesson)
+- Firms already advertising live tracking / TrackTik-style / “our app”
+- National mega-brands / 150+ employee enterprises
+- CCTV-only, cyber, training, recruitment, SIA courses
+- Bad AI imports (wrong country, e.g. US ICU Security) → mark lost / bad lead
+
+## Operator constraints
+- Yousif is often in **Gaza** — **no reliable UK phone calling**
+- Prefer: **LinkedIn, email, WhatsApp** (UK mobiles only), **video call** (Zoom/Meet/WA)
+- Ignore landline-first plans unless they initiate
+
+## Email templates (live names to edit)
+Keep active stack:
+1. `FieldLine — own vs rent (cold)` — primary cold for named contacts (shorter CTA: reply with a video time)
+2. `FieldLine — follow-up (3 days)` — auto on **business day 4**; subject must **thread** (`Re:` + same cold subject)
+3. `FieldLine — final nudge (7 days)` — auto on **business day 8**; late soft ~$10k + “reply call”
+4. `General Attention email` — for `info@` / `enquiries@` (usually manual, no sequence)
+5. Optional: `FieldLine — multi-site` as alt cold; `LinkedIn Connect` for LI notes
+
+Deactivate: classic FieldLine cold, SPL Connect templates, pricing-first cold (use final nudge instead).
+
+**Tokens:** `{{first_name}}`, `{{company}}` (lowercase). Never `{{Company}}`.
+
+**Blog:** Own-vs-rent post is OK to link in **follow-ups only**, not every first cold.
+
+**Sequence:** cold is always manual; check “Enroll in automated sequence” on send. Scheduler: `outreach:process-sequences` every 15 min (UK business days only).
+
+## AI lead-search presets
+Prefer: South East / Home Counties, then Midlands. Always ask for **phone + LinkedIn**, prefer **named email**, skip pure keyholding, skip CRM duplicates.
+
+## CRM / analytics
+- Campaigns = tracking labels, not blast engines
+- Reports page = live outreach analytics (opens, reply rate, funnel, hot opens, multi-touch)
+- Status hygiene: use qualified / responded / lost honestly; don’t treat unsubscribes as pipeline
+- Prioritize **Hottest opens** + **Qualified** for personal LinkedIn — not more bulk email
+
+## Channel playbook
+1. Named contact → own-vs-rent cold (**manual**; check “Enroll in automated sequence”)
+2. **+4 UK business days** → auto threaded follow-up (`fieldline_followup`)
+3. **+8 UK business days** from cold → auto final nudge (`fieldline_final_nudge`)
+4. Shared inbox → attention/forward template (manual; usually no sequence)
+5. High opens, no reply → LinkedIn + WhatsApp (if mobile), not email #5
+6. **+15 UK business days** from cold, no reply:
+   - Hot opens → leave Contacted + LinkedIn task (do **not** auto-Lost)
+   - Quiet → auto-Lost
+7. Any reply / Qualified / Won / Lost / cancel → sequence stops
+8. Goal metric: **conversation / 15-min video call**, not send volume
+
+## Weekly rhythm (default)
+- **Conversion days:** work hot/qualified list personally; handle replies same day
+- **Fill days:** 1 AI search → ~10–15 clean leads → cold with sequence enrollment (cap volume; prefer steady weekday sends over bursts)
+- Avoid blasting already 4-touch non-repliers; break-up or change channel instead
+
+## Messaging angles that work
+- Primary: **own vs rent** (stop renting control-room software)
+- Secondary: WhatsApp/spreadsheets ≠ control room; multi-site patrol proof / client evidence
+- CTA: reply with a time for 15-min **video** walkthrough; “reply call” on final nudge
+- Soft ~$10k only on final nudge (site pricing can stay public)
+- Don’t claim FieldLine was “taken from a client project” in public content
+
+## Known live priorities (update as CRM changes)
+- Hot/qualified examples historically: ProFM (John Melling / ops Chris Firkin), Glentworth (Russ Webster), ALG (Bobby Gaze — keyholding caution), Milne (Jordan Wiggins), Risk Secured (David Foster)
+- Foremost (Matt Prince) — treat OOO/calendar returns as high priority
+- Lost after real reply: NVC (ICP mismatch), JD (unsubscribe) — do not re-chase

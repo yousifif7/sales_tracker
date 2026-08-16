@@ -28,6 +28,7 @@ class SendBulkContactEmailRequest extends FormRequest
                 'string',
                 Rule::exists('email_templates', 'slug')->where(fn ($query) => $query->where('is_active', true)),
             ],
+            'enroll_in_sequence' => ['sometimes', 'boolean'],
         ];
     }
 }

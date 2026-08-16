@@ -78,6 +78,33 @@
             </dl>
         </section>
 
+        @if ($activeSequence ?? null)
+            <section class="panel min-w-0 2xl:col-span-2">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Email sequence</h3>
+                        <p class="mt-1 text-sm text-slate-400">
+                            Next: {{ $activeSequence->next_step->label() }}
+                            @if ($activeSequence->next_action_at)
+                                on {{ $activeSequence->next_action_at->timezone(config('outreach.sequence.timezone', 'Europe/London'))->format('D M j, Y g:ia') }} UK
+                            @endif
+                        </p>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Enrolled {{ $activeSequence->enrolled_at?->format('M j, Y') }}
+                            @if ($activeSequence->followup_sent_at) · follow-up sent {{ $activeSequence->followup_sent_at->format('M j') }} @endif
+                            @if ($activeSequence->nudge_sent_at) · nudge sent {{ $activeSequence->nudge_sent_at->format('M j') }} @endif
+                        </p>
+                    </div>
+                    @can(\App\Support\Permissions::EMAILS_SEND)
+                        <form method="post" action="{{ route('contacts.sequence.cancel', $contact) }}" onsubmit="return confirm('Cancel automated follow-ups for this contact?')">
+                            @csrf
+                            <button class="btn-secondary" type="submit">Cancel sequence</button>
+                        </form>
+                    @endcan
+                </div>
+            </section>
+        @endif
+
         <section class="panel min-w-0">
             <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">

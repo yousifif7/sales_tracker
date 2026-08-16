@@ -55,6 +55,29 @@
                 hint="Bold, italic, lists, and links are supported."
             />
 
+            <div class="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3">
+                <label class="flex items-start gap-3">
+                    <input
+                        type="checkbox"
+                        name="enroll_in_sequence"
+                        value="1"
+                        class="mt-1"
+                        @checked(old('enroll_in_sequence', $enrollInSequence ?? true))
+                        @disabled($hasActiveSequence ?? false)
+                    >
+                    <span>
+                        <span class="block text-sm font-medium text-slate-200">Enroll in automated sequence</span>
+                        <span class="mt-1 block text-sm text-slate-400">
+                            After this cold send: follow-up on business day 4, final nudge on day 8, exit on day 15
+                            (hot opens → LinkedIn task; quiet → Lost). Weekends skipped.
+                        </span>
+                        @if ($hasActiveSequence ?? false)
+                            <span class="mt-1 block text-sm text-amber-200">This contact already has an active sequence.</span>
+                        @endif
+                    </span>
+                </label>
+            </div>
+
             <div class="flex flex-wrap gap-3">
                 <button class="btn-primary" type="submit">Send via SMTP</button>
                 <a class="btn-secondary" href="{{ route('contacts.show', $contact) }}">Cancel</a>

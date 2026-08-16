@@ -6,14 +6,17 @@ use App\Enums\ContactSource;
 use App\Enums\ContactStatus;
 use App\Enums\EmailDeliveryStatus;
 use App\Enums\EmailMessageDirection;
+use App\Enums\EmailSequenceExitReason;
 use App\Http\Requests\ContactRequest;
 use App\Models\Contact;
 use App\Models\Tag;
+use App\Services\OutreachSequenceService;
 use App\Support\Permissions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ContactController extends Controller
@@ -158,10 +161,13 @@ class ContactController extends Controller
                 'messages as opened_count' => fn ($m) => $m->where('direction', 'outbound')->where(fn ($inner) => $inner->whereNotNull('opened_at')->orWhere('open_count', '>', 0)),
                 'messages as inbound_count' => fn ($m) => $m->where('direction', 'inbound'),
             ])->latest('last_message_at')->limit(10),
+            'sequenceEnrollments' => fn ($query) => $query->latest('id')->limit(5),
         ]);
 
         return view('contacts.show', [
             'contact' => $contact,
+            'activeSequence' => $contact->sequenceEnrollments
+                ->first(fn ($enrollment) => $enrollment->status === \App\Enums\EmailSequenceStatus::Active),
         ]);
     }
 
@@ -183,8 +189,27 @@ class ContactController extends Controller
     {
         $this->authorizePermission(Permissions::CONTACTS_UPDATE);
 
+        $previousStatus = $contact->status;
+
         $contact->update($request->safe()->except('tags'));
         $this->syncTags($contact, $request->input('tags'));
+
+        if (
+            $previousStatus !== $contact->status
+            && in_array($contact->status, [
+                ContactStatus::Responded,
+                ContactStatus::Qualified,
+                ContactStatus::Won,
+                ContactStatus::Lost,
+            ], true)
+        ) {
+            app(OutreachSequenceService::class)->completeForContact(
+                $contact,
+                $contact->status === ContactStatus::Responded
+                    ? EmailSequenceExitReason::Replied
+                    : EmailSequenceExitReason::StatusChanged,
+            );
+        }
 
         return redirect()
             ->route('contacts.show', $contact)
@@ -221,6 +246,61 @@ class ContactController extends Controller
             ->with('status', $count === 1
                 ? '1 contact deleted.'
                 : "{$count} contacts deleted.");
+    }
+
+    public function bulkStatus(Request $request): RedirectResponse
+    {
+        $this->authorizePermission(Permissions::CONTACTS_UPDATE);
+
+        $validated = $request->validate([
+            'contact_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'contact_ids.*' => ['integer', 'distinct', 'exists:contacts,id'],
+            'status' => ['required', Rule::enum(ContactStatus::class)],
+        ]);
+
+        $status = ContactStatus::from($validated['status']);
+        $contacts = Contact::query()->whereIn('id', $validated['contact_ids'])->get();
+        $updated = 0;
+
+        $sequences = app(OutreachSequenceService::class);
+        $stopStatuses = [
+            ContactStatus::Responded,
+            ContactStatus::Qualified,
+            ContactStatus::Won,
+            ContactStatus::Lost,
+        ];
+
+        foreach ($contacts as $contact) {
+            if ($contact->status === $status) {
+                continue;
+            }
+
+            $previousStatus = $contact->status;
+            $contact->update(['status' => $status]);
+            $updated++;
+
+            if (
+                $previousStatus !== $status
+                && in_array($status, $stopStatuses, true)
+            ) {
+                $sequences->completeForContact(
+                    $contact,
+                    $status === ContactStatus::Responded
+                        ? EmailSequenceExitReason::Replied
+                        : EmailSequenceExitReason::StatusChanged,
+                );
+            }
+        }
+
+        $label = $status->label();
+
+        return redirect()
+            ->route('contacts.index')
+            ->with('status', $updated === 0
+                ? "No contacts needed updating — already {$label}."
+                : ($updated === 1
+                    ? "1 contact marked {$label}."
+                    : "{$updated} contacts marked {$label}."));
     }
 
     protected function syncTags(Contact $contact, ?string $tags): void

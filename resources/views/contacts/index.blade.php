@@ -2,7 +2,8 @@
     @php
         $canBulkEmail = auth()->user()?->can(\App\Support\Permissions::EMAILS_SEND);
         $canBulkDelete = auth()->user()?->can(\App\Support\Permissions::CONTACTS_DELETE);
-        $canBulkSelect = $canBulkEmail || $canBulkDelete;
+        $canBulkStatus = auth()->user()?->can(\App\Support\Permissions::CONTACTS_UPDATE);
+        $canBulkSelect = $canBulkEmail || $canBulkDelete || $canBulkStatus;
         $colspan = ($canBulkSelect ? 11 : 10);
     @endphp
 
@@ -78,11 +79,34 @@
             </p>
             <form
                 method="post"
-                action="{{ $canBulkEmail ? route('contacts.email.bulk.create') : route('contacts.bulk-destroy') }}"
+                action="{{ $canBulkEmail ? route('contacts.email.bulk.create') : ($canBulkStatus ? route('contacts.bulk-status') : route('contacts.bulk-destroy')) }}"
                 id="contacts-bulk-form"
-                class="flex flex-wrap gap-2"
+                class="flex flex-wrap items-center gap-2"
             >
                 @csrf
+                @if ($canBulkStatus)
+                    <select
+                        class="input mt-0 w-auto min-w-[10rem]"
+                        name="status"
+                        id="contacts-bulk-status"
+                        disabled
+                    >
+                        <option value="">Set status…</option>
+                        @foreach ($statusOptions as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <button
+                        class="btn-secondary"
+                        type="submit"
+                        id="contacts-bulk-status-btn"
+                        formaction="{{ route('contacts.bulk-status') }}"
+                        disabled
+                        onclick="return confirm('Update status for the selected contacts?');"
+                    >
+                        Update status
+                    </button>
+                @endif
                 @if ($canBulkEmail)
                     <button class="btn-secondary" type="submit" id="contacts-bulk-email" disabled>
                         Email selected
@@ -221,12 +245,15 @@
                 var selectAll = document.getElementById('contacts-select-all');
                 var emailButton = document.getElementById('contacts-bulk-email');
                 var deleteButton = document.getElementById('contacts-bulk-delete');
+                var statusSelect = document.getElementById('contacts-bulk-status');
+                var statusButton = document.getElementById('contacts-bulk-status-btn');
                 var checks = function () { return Array.prototype.slice.call(document.querySelectorAll('.contacts-row-check')); };
                 var sync = function () {
                     var rows = checks();
                     var selected = rows.filter(function (el) { return el.checked; });
                     var selectedCount = selected.length;
                     var emailableCount = selected.filter(function (el) { return el.getAttribute('data-has-email') === '1'; }).length;
+                    var hasStatus = statusSelect && statusSelect.value !== '';
 
                     if (emailButton) {
                         emailButton.disabled = emailableCount === 0;
@@ -240,6 +267,15 @@
                             ? ('Delete selected (' + selectedCount + ')')
                             : 'Delete selected';
                     }
+                    if (statusSelect) {
+                        statusSelect.disabled = selectedCount === 0;
+                    }
+                    if (statusButton) {
+                        statusButton.disabled = selectedCount === 0 || ! hasStatus;
+                        statusButton.textContent = selectedCount > 0
+                            ? ('Update status (' + selectedCount + ')')
+                            : 'Update status';
+                    }
                     if (selectAll) {
                         selectAll.checked = rows.length > 0 && selectedCount === rows.length;
                         selectAll.indeterminate = selectedCount > 0 && selectedCount < rows.length;
@@ -249,6 +285,18 @@
                     selectAll.addEventListener('change', function () {
                         checks().forEach(function (el) { el.checked = selectAll.checked; });
                         sync();
+                    });
+                }
+                if (statusSelect) {
+                    statusSelect.addEventListener('change', sync);
+                }
+                if (statusButton) {
+                    form.addEventListener('submit', function (event) {
+                        if (event.submitter !== statusButton) return;
+                        if (! statusSelect || ! statusSelect.value) {
+                            event.preventDefault();
+                            alert('Choose a status first.');
+                        }
                     });
                 }
                 if (emailButton) {

@@ -31,6 +31,12 @@ Schedule::command('email:sync-imap')
     ->name('imap-inbox-sync')
     ->appendOutputTo(storage_path('logs/imap-sync.log'));
 
+Schedule::command('outreach:process-sequences')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(10)
+    ->name('outreach-sequences')
+    ->appendOutputTo(storage_path('logs/outreach-sequences.log'));
+
 Schedule::command('queue:prune-failed --hours=168')
     ->dailyAt('03:15')
     ->name('prune-failed-jobs');

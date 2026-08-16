@@ -109,6 +109,11 @@ class Contact extends Model
         return $this->hasMany(FollowUp::class);
     }
 
+    public function sequenceEnrollments(): HasMany
+    {
+        return $this->hasMany(EmailSequenceEnrollment::class);
+    }
+
     public function emailThreads(): HasMany
     {
         return $this->hasMany(EmailThread::class)->latest('last_message_at');
