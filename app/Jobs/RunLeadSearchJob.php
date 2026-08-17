@@ -55,6 +55,7 @@ class RunLeadSearchJob implements ShouldQueue
                 'name' => $name,
                 'company' => $lead['company'] ?? null,
                 'email' => $lead['email'] ?? null,
+                'phone' => $lead['phone'] ?? null,
                 'source' => ContactSource::AiSearch,
                 'source_url' => $lead['source_url'] ?? null,
                 'website' => $lead['website'] ?? null,

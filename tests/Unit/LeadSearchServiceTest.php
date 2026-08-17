@@ -62,6 +62,7 @@ class LeadSearchServiceTest extends TestCase
         $this->assertCount(2, $result['results']);
         $this->assertSame('Ada Lovelace', $result['results'][0]['name']);
         $this->assertSame('ada@example.com', $result['results'][0]['email']);
+        $this->assertNull($result['results'][0]['phone']);
         $this->assertSame('https://analyticalengines.com', $result['results'][0]['website']);
         $this->assertSame('https://www.linkedin.com/in/ada-lovelace', $result['results'][0]['linkedin_url']);
         $this->assertSame('https://instagram.com/ada', $result['results'][0]['social_links']['instagram']);
@@ -922,5 +923,218 @@ class LeadSearchServiceTest extends TestCase
                 && str_contains($prompt, 'nvc-security.com')
                 && str_contains($prompt, 'csmsecurity.co.uk');
         });
+    }
+
+    public function test_it_rejects_us_namesakes_even_when_the_person_is_cited(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => true,
+            'openrouter.web_search.min_leads' => 1,
+            'openrouter.web_search.min_new_leads' => 1,
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                [
+                                    'name' => 'Carl Griffiths',
+                                    'role' => 'Managing Director',
+                                    'company' => 'First Response Facilities Management',
+                                    'email' => 'info@firstresponse-fm.co.uk',
+                                    'phone' => '07540 090644',
+                                    'website' => 'https://www.firstresponse-fm.co.uk',
+                                    'source_url' => 'https://www.firstresponse-fm.co.uk/about',
+                                ],
+                                [
+                                    'name' => 'Dari Burbano',
+                                    'role' => 'Field Operations Manager',
+                                    'company' => 'OMS Group',
+                                    'email' => null,
+                                    'website' => 'https://www.omsgroupllc.com',
+                                    'source_url' => 'https://www.omsgroupllc.com/about-team.html',
+                                ],
+                            ]),
+                            'annotations' => [
+                                [
+                                    'type' => 'url_citation',
+                                    'url_citation' => [
+                                        'url' => 'https://www.firstresponse-fm.co.uk/about',
+                                        'title' => 'About Us | First Response Facilities Management',
+                                        'content' => 'Carl Griffiths /G: Managing Director. Veteran-owned UK security and FM.',
+                                    ],
+                                ],
+                                [
+                                    'type' => 'url_citation',
+                                    'url_citation' => [
+                                        'url' => 'https://www.omsgroupllc.com/about-team.html',
+                                        'title' => 'About OMS Group, LLC.',
+                                        'content' => 'Ms. Dari Burbano is the Field Operations Manager for Orion Managed Services vegetation management programs.',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('South East England manned guarding max 10');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Carl Griffiths', $result['results'][0]['name']);
+        $this->assertSame('07540 090644', $result['results'][0]['phone']);
+        $this->assertSame('https://www.firstresponse-fm.co.uk', $result['results'][0]['website']);
+        $this->assertGreaterThan(0, $result['diagnostics']['dropped_wrong_country']);
+        $this->assertStringContainsString('United Kingdom only', (string) data_get(
+            Http::recorded()[0][0]->data(),
+            'messages.0.content',
+        ));
+    }
+
+    public function test_it_rejects_foreign_tlds_and_llm_filler_names(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => false,
+            'openrouter.web_search.min_leads' => 1,
+            'openrouter.web_search.min_new_leads' => 1,
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                [
+                                    'name' => 'Michael Johnson',
+                                    'role' => 'Director',
+                                    'company' => 'Access Facilities Management Ltd',
+                                    'website' => 'https://access-fm.co.uk/',
+                                    'source_url' => 'https://access-fm.co.uk/about-us/',
+                                ],
+                                [
+                                    'name' => 'Sarah Brown',
+                                    'role' => 'Operations Manager',
+                                    'company' => 'Reassurance Security Services Ltd',
+                                    'website' => 'https://www.reassurancesecurityservices.co.uk/',
+                                    'source_url' => 'https://www.reassurancesecurityservices.co.uk/contact/',
+                                ],
+                                [
+                                    'name' => 'Alex Cates',
+                                    'role' => 'Chief Executive Officer',
+                                    'company' => 'OMS Group LLC',
+                                    'website' => 'https://omsgroup.com.au/',
+                                    'source_url' => 'https://omsgroup.com.au/about',
+                                ],
+                                [
+                                    'name' => 'Bobby Gaze',
+                                    'role' => 'Director',
+                                    'company' => 'ALG Security Ltd',
+                                    'email' => 'info@algsecurity.co.uk',
+                                    'website' => 'https://www.algsecurity.co.uk/',
+                                    'source_url' => 'https://www.algsecurity.co.uk/about',
+                                ],
+                            ]),
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('South East guarding firms max 5');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Bobby Gaze', $result['results'][0]['name']);
+        $this->assertGreaterThan(0, $result['diagnostics']['dropped_wrong_country']);
+    }
+
+    public function test_it_does_not_refill_from_non_uk_citation_hosts(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => true,
+            'openrouter.web_search.min_leads' => 2,
+            'openrouter.web_search.min_new_leads' => 1,
+            'openrouter.web_search.max_diversify_attempts' => 0,
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::sequence()
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => '[]',
+                                'annotations' => [
+                                    [
+                                        'type' => 'url_citation',
+                                        'url_citation' => [
+                                            'url' => 'https://www.omsgroupllc.com/about-team.html',
+                                            'content' => 'Dari Burbano Field Operations Manager OMS Group LLC',
+                                        ],
+                                    ],
+                                    [
+                                        'type' => 'url_citation',
+                                        'url_citation' => [
+                                            'url' => 'https://csmsecurity.co.uk/meet-the-team/',
+                                            'content' => 'CSM Security North Wales manned guarding',
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200)
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Spencer Martin',
+                                        'role' => 'Managing Director',
+                                        'company' => 'CSM Security',
+                                        'website' => 'https://csmsecurity.co.uk',
+                                        'source_url' => 'https://csmsecurity.co.uk/meet-the-team/',
+                                    ],
+                                ]),
+                                'annotations' => [
+                                    [
+                                        'type' => 'url_citation',
+                                        'url_citation' => [
+                                            'url' => 'https://csmsecurity.co.uk/meet-the-team/',
+                                            'content' => 'Spencer Martin Managing Director of CSM Security',
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('South East guarding firms max 5');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Spencer Martin', $result['results'][0]['name']);
+        $this->assertArrayHasKey('refill', $result['raw_response']);
+
+        $refillPrompt = (string) data_get(Http::recorded()[1][0]->data(), 'messages.1.content');
+        $this->assertStringContainsString('csmsecurity.co.uk', $refillPrompt);
+        $this->assertStringNotContainsString('omsgroupllc.com', $refillPrompt);
     }
 }

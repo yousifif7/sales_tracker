@@ -229,6 +229,48 @@ BODY,
     ],
 
     'lead_search_presets' => [
+        'uk_security_south_east' => [
+            'label' => 'UK security firms — South East / Home Counties',
+            'criteria' => <<<'CRITERIA'
+Find UK manned-guarding / static multi-site security companies for FieldLine outreach.
+
+Region focus this run:
+- South East England / Home Counties
+- Prefer: Essex, Kent, Surrey, Hertfordshire, Buckinghamshire, Berkshire, Sussex
+- Include Greater London ONLY if mid-size and clearly ops-heavy (not national enterprise brands)
+
+Strong positive signals:
+- Job ads or site copy mentioning WhatsApp, paper logs, DOB books, manual rota, ops coordinator, control room
+- Growing firm adding sites/guards but still marketing traditional guarding services
+- Competes on service quality / client reporting, not on already having an in-house software stack
+
+Disqualify / skip:
+- Pure keyholding / alarm response / mobile patrol-only firms with little or no static/manned multi-site guarding
+- Firms already advertising live guard tracking, KPI dashboards, TrackTik-style platforms, “our app”, or dedicated ops software
+- National mega-brands / 150+ employee enterprises
+- Pure CCTV installers, alarm-only companies, cyber security, recruitment agencies, training centres, SIA course providers
+- No website, or no verifiable named decision-maker
+- Anyone that looks already widely pitched / mega-brand
+- NON-UK companies and foreign namesakes (US LLC, Australia, Canada). If the UK firm is oms.co.uk, do not return omsgroupllc.com.
+
+For each lead return:
+- name: real Owner / Founder / MD / Director / Ops decision-maker (first + last, currently at the UK company)
+- role: exact title
+- company: legal/trading name
+- email: public email if found (named email strongly preferred; info@ / enquiries@ only if no named email exists)
+- phone: public phone if found (main office or direct), else null
+- website: UK company website
+- linkedin_url: personal LinkedIn if found, else null
+- company_linkedin_url: company LinkedIn if found, else null
+- social_links: facebook/instagram/x if found, else null
+- source_url: about/team/contact page used to verify the person
+
+Return strict JSON only, max 10 leads.
+Prefer fewer verified real UK leads over guesses.
+Never invent names, emails, phones, or LinkedIn URLs — use null if unverified.
+Prefer companies that look ready for a 15-min FieldLine demo because ops are still manual.
+CRITERIA
+        ],
         'uk_security_midlands' => [
             'label' => 'UK security firms — Midlands (FieldLine ICP)',
             'criteria' => <<<'CRITERIA'

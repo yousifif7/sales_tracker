@@ -41,6 +41,7 @@
                 <th>Company</th>
                 <th>Role</th>
                 <th>Email</th>
+                <th>Phone</th>
                 <th>Quick links</th>
                 <th class="text-right">Actions</th>
             </tr>
@@ -64,6 +65,7 @@
                             —
                         @endif
                     </td>
+                    <td>{{ filled($lead['phone'] ?? null) ? $lead['phone'] : '—' }}</td>
                     <td>
                         <div class="flex flex-wrap gap-2 text-xs">
                             @if (! empty($lead['linkedin_url']))
@@ -109,7 +111,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="text-center text-slate-500">
+                    <td colspan="7" class="text-center text-slate-500">
                         {{ filled($leadSearch->raw_results) ? 'No leads were returned.' : 'Results will appear once the job finishes. Refresh in a minute.' }}
                     </td>
                 </tr>

@@ -19,6 +19,16 @@ class LeadSearchService
         'john smith',
         'jane smith',
         'james smith',
+        'michael johnson',
+        'michael smith',
+        'sarah brown',
+        'sarah johnson',
+        'david smith',
+        'david jones',
+        'robert jones',
+        'robert smith',
+        'james wilson',
+        'emily wilson',
         'joe bloggs',
         'joe blogs',
         'a n other',
@@ -40,6 +50,19 @@ class LeadSearchService
         'admin',
         'info',
         'support',
+    ];
+
+    /**
+     * Country-code / regional TLDs that are never the UK company we want.
+     *
+     * @var list<string>
+     */
+    protected array $nonUkTldSuffixes = [
+        '.com.au', '.co.nz', '.co.za', '.co.in', '.com.br', '.co.jp', '.com.sg',
+        '.au', '.nz', '.us', '.ca', '.za', '.in', '.br', '.jp', '.sg', '.ae',
+        '.ie', '.de', '.fr', '.es', '.it', '.nl', '.be', '.ch', '.at', '.pl',
+        '.se', '.no', '.dk', '.fi', '.pt', '.mx', '.ar', '.cl', '.cn', '.hk',
+        '.kr', '.tw', '.ph', '.my', '.id', '.pk', '.ng', '.ke', '.eg',
     ];
 
     /** @var array<string, mixed>|null */
@@ -199,21 +222,25 @@ class LeadSearchService
 
         $droppedExisting = $sum('dropped_already_in_crm');
         $droppedUnverified = $sum('dropped_unverified');
+        $droppedWrongCountry = $sum('dropped_wrong_country');
         $droppedDuplicate = $sum('dropped_duplicate_company');
 
         $summary = count($results) >= $minNewLeads
             ? null
             : trim(sprintf(
-                'Only %d usable lead(s) from %d passes. The model returned %d companies: %d already in your CRM, %d unverifiable from citations, %d duplicate companies. %s',
+                'Only %d usable lead(s) from %d passes. The model returned %d companies: %d already in your CRM, %d unverifiable from citations, %d wrong-country/namesake, %d duplicate companies. %s',
                 count($results),
                 count($this->passDiagnostics),
                 $sum('returned_by_model'),
                 $droppedExisting,
                 $droppedUnverified,
+                $droppedWrongCountry,
                 $droppedDuplicate,
-                $droppedExisting > 0
-                    ? 'This region/ICP looks close to exhausted — widen the region or loosen the size range.'
-                    : 'Try a broader region or allow general company emails.',
+                $droppedWrongCountry > 0
+                    ? 'The model mixed in non-UK namesakes — retry with a county + “SIA” / site:.co.uk.'
+                    : ($droppedExisting > 0
+                        ? 'This region/ICP looks close to exhausted — widen the region or loosen the size range.'
+                        : 'Try a broader region or allow general company emails.'),
             ));
 
         return [
@@ -222,6 +249,7 @@ class LeadSearchService
             'model_returned' => $sum('returned_by_model'),
             'dropped_already_in_crm' => $droppedExisting,
             'dropped_unverified' => $droppedUnverified,
+            'dropped_wrong_country' => $droppedWrongCountry,
             'dropped_duplicate_company' => $droppedDuplicate,
             'passes' => $this->passDiagnostics,
             'summary' => $summary,
@@ -273,12 +301,16 @@ class LeadSearchService
     protected function systemPrompt(): string
     {
         return implode("\n", [
-            'You are a B2B lead research assistant with live web search for UK security companies.',
-            'Return usable outreach leads with REAL full names (first + last).',
-            'Never invent people. Never use placeholders (John Doe, Jane Doe, John Smith, James Smith, Joe Bloggs).',
+            'You are a B2B lead research assistant with live web search for United Kingdom security companies only.',
+            'Return usable outreach leads with REAL full names (first + last) currently at that UK company.',
+            'Hard geographic rule: United Kingdom only. Never return US, Australian, Canadian, Irish, or other non-UK companies.',
+            'Same-name trap: a US/AU clone is not the UK firm (e.g. OMS Group LLC / omsgroupllc.com is not UK OMS Group / oms.co.uk). Use the UK domain.',
+            'Prefer .co.uk / .uk websites. A .com is allowed only when the page itself is clearly the UK firm (SIA, Companies House, UK address or +44).',
+            'Never invent people. Never use placeholders (John Doe, Jane Doe, John Smith, Michael Johnson, Sarah Brown, James Smith, Joe Bloggs).',
             'Never return a single first name only (e.g. Bobby, Mike).',
-            'Workflow: shortlist company sites → open about/team/meet-the-team pages → extract Owner/MD/Director full name.',
-            'Soft ICP preferences are optional clues, not hard rejects.',
+            'If you cannot verify a real named UK decision-maker, omit that company. An empty JSON array is better than guesses.',
+            'Workflow: search “manned guarding” + UK county + SIA → open the UK about/team page → extract Owner/MD/Director full name.',
+            'Skip clear ICP mismatches (pure keyholding, already-have-an-app, mega-brands). Do not skip a UK guarding firm just because size is uncertain.',
             'Return strict JSON array only.',
         ]);
     }
@@ -291,6 +323,8 @@ class LeadSearchService
     protected function finalizeResults(array $leads, array $rawResponse, bool $requireWebEvidence, string $pass = 'initial'): array
     {
         $returned = count($leads);
+        $leads = $this->retainUkLeads($leads, $rawResponse);
+        $ukLeads = count($leads);
 
         if ($requireWebEvidence) {
             $leads = $this->retainEvidenceBackedLeads($leads, $rawResponse);
@@ -304,7 +338,8 @@ class LeadSearchService
         $this->passDiagnostics[] = [
             'pass' => $pass,
             'returned_by_model' => $returned,
-            'dropped_unverified' => $returned - $verified,
+            'dropped_wrong_country' => $returned - $ukLeads,
+            'dropped_unverified' => $ukLeads - $verified,
             'dropped_already_in_crm' => $verified - $new,
             'dropped_duplicate_company' => $new - count($leads),
             'kept' => count($leads),
@@ -424,6 +459,10 @@ class LeadSearchService
                 continue;
             }
 
+            if ($this->hostIsClearlyNonUk($host)) {
+                continue;
+            }
+
             foreach ($blockedHosts as $blocked) {
                 if ($host === $blocked || str_ends_with($host, '.'.$blocked)) {
                     continue 2;
@@ -462,10 +501,10 @@ Candidate companies to convert into leads (need {$needed} more — one person pe
 {$lines}
 
 For each candidate:
-1) Open that company's about / team / meet-the-team / contact page (same domain preferred).
-2) Extract ONE real full name (first + last) of Owner / Managing Director / Director / Founder.
-3) Include public email if shown, else null.
-4) Prefer UK decision-makers for UK companies. Ignore Australian / unrelated companies with similar names.
+1) Confirm it is the UNITED KINGDOM company (SIA, Companies House, UK address, .co.uk). Skip US/AU/CA namesakes even if the trading name matches.
+2) Open that company's about / team / meet-the-team / contact page (same UK domain preferred).
+3) Extract ONE real full name (first + last) of Owner / Managing Director / Director / Founder.
+4) Include public email and phone if shown, else null.
 
 {$excludeBlock}
 
@@ -476,6 +515,7 @@ Return JSON array ONLY in this exact shape (field names must match):
     "role": "Managing Director",
     "company": "Company Name",
     "email": null,
+    "phone": null,
     "website": "https://company-domain.co.uk",
     "linkedin_url": null,
     "company_linkedin_url": null,
@@ -486,9 +526,9 @@ Return JSON array ONLY in this exact shape (field names must match):
 
 Hard rules:
 - Use "name" (not full_name). Use "email" (not public_email).
-- source_url must be on the company website domain, not exa.ai / LinkedIn scrapers.
-- Full first + last name required. No placeholders.
-- Skip a company if you cannot verify a named decision-maker on their site.
+- source_url must be on the UK company website domain, not exa.ai / LinkedIn scrapers / foreign clones.
+- Full first + last name required. No placeholders (John Smith, Michael Johnson, Sarah Brown).
+- Skip a company if you cannot verify a named UK decision-maker on their site. Empty array is fine.
 - One lead per company. Return up to {$needed} leads.
 PROMPT;
     }
@@ -513,12 +553,12 @@ Do not return any lead from these domains:
 {$blocked}
 
 Mandatory search plan (max {$maxUses} web searches):
-1) Discover at least {$maxLeads} distinct NEW candidate company websites that match the region + service type.
+1) Discover distinct NEW UK candidate company websites (query must include UK or a UK county + “SIA” or “manned guarding”; prefer site:.co.uk).
 2) Skip companies/domains in the CRM exclude list below and skip the blocked domains above.
-3) For EVERY remaining candidate, open about / team / meet-the-team / our-people / contact pages.
-4) Extract a REAL full name (first AND last) with role Owner / Managing Director / Director / Founder.
-5) Include public email if shown (info@ is fine). If no email, still include the lead with email null.
-6) Keep going until you have at least {$minLeads} verified NEW leads (target {$maxLeads}).
+3) Skip any non-UK namesake (LLC, Inc, .com.au, United States, Australia) even if the trading name matches a UK firm.
+4) For EVERY remaining UK candidate, open about / team / meet-the-team / our-people / contact pages.
+5) Extract a REAL full name (first AND last) with role Owner / Managing Director / Director / Founder.
+6) Include public email and phone if shown (info@ is fine). If missing, still include the lead with nulls.
 
 {$excludeBlock}
 
@@ -529,7 +569,8 @@ Return JSON array only:
     "role": "Owner / MD / Director / Founder",
     "company": "Company name",
     "email": "public email or null",
-    "website": "https://company-website.com",
+    "phone": "public phone or null",
+    "website": "https://company-website.co.uk",
     "linkedin_url": "https://www.linkedin.com/in/... or null",
     "company_linkedin_url": null,
     "social_links": {},
@@ -538,11 +579,12 @@ Return JSON array only:
 ]
 
 Hard rules:
-- JSON only.
+- JSON only. United Kingdom companies only.
 - Return NEW companies only, not the blocked domains.
-- Minimum {$minLeads} leads when candidate firms exist. Target {$maxLeads}.
+- Aim for at least {$minLeads} verified NEW leads (Target {$maxLeads}). Never invent names to hit a quota — omit or return [] instead.
+- Forbidden placeholders: John Doe, Jane Doe, John Smith, Michael Johnson, Sarah Brown, James Smith, Joe Bloggs.
 - One decision-maker per company (prefer Owner / Managing Director).
-- name MUST be a real first + last name found on the source page.
+- name MUST be a real first + last name found on the UK source page.
 - Max {$maxLeads} leads.
 PROMPT;
     }
@@ -579,12 +621,12 @@ Find sales leads that match:
 {$criteria}
 
 Mandatory search plan (max {$maxUses} web searches):
-1) Discover at least {$maxLeads} distinct candidate company websites that match the region + service type.
+1) Discover distinct UK candidate company websites (every query must include UK or a UK county + “SIA” or “manned guarding”; prefer site:.co.uk).
 2) Skip companies/domains in the CRM exclude list below.
-3) For EVERY remaining candidate, open about / team / meet-the-team / our-people / contact pages.
-4) Extract a REAL full name (first AND last) with role Owner / Managing Director / Director / Founder.
-5) Include public email if shown (info@ is fine). If no email, still include the lead with email null.
-6) Keep going until you have at least {$minLeads} verified leads (target {$maxLeads}).
+3) Skip non-UK namesakes (US LLC, Australia, Canada, Ireland) even when the trading name matches.
+4) For EVERY remaining UK candidate, open about / team / meet-the-team / our-people / contact pages.
+5) Extract a REAL full name (first AND last) with role Owner / Managing Director / Director / Founder.
+6) Include public email and phone if shown (info@ is fine). If missing, still include the lead with nulls.
 
 {$excludeBlock}
 
@@ -595,7 +637,8 @@ Return JSON array only:
     "role": "Owner / MD / Director / Founder",
     "company": "Company name",
     "email": "public email or null",
-    "website": "https://company-website.com",
+    "phone": "public phone or null",
+    "website": "https://company-website.co.uk",
     "linkedin_url": "https://www.linkedin.com/in/... or null",
     "company_linkedin_url": null,
     "social_links": {},
@@ -604,13 +647,13 @@ Return JSON array only:
 ]
 
 Hard rules:
-- JSON only.
-- Minimum {$minLeads} leads when candidate firms exist. Target {$maxLeads}.
+- JSON only. United Kingdom companies only.
+- Aim for at least {$minLeads} verified leads (Target {$maxLeads}). Never invent names to hit a quota — omit or return [] instead.
 - One decision-maker per company (prefer Owner / Managing Director).
-- name MUST be a real first + last name found on the source page.
-- Forbidden: John Doe, Jane Doe, John Smith, James Smith, Joe Bloggs, single first names (Bobby, Mike), invented people.
-- Soft preferences in the criteria are NOT hard disqualifiers.
-- Skip only clear mismatches or exclude-list companies.
+- name MUST be a real first + last name found on the UK source page.
+- Forbidden: John Doe, Jane Doe, John Smith, Michael Johnson, Sarah Brown, James Smith, Joe Bloggs, single first names (Bobby, Mike), invented people.
+- Country is a hard reject. Other ICP preferences are not hard disqualifiers when size is uncertain.
+- Skip only clear mismatches, foreign namesakes, or exclude-list companies.
 - Max {$maxLeads} leads.
 PROMPT;
     }
@@ -931,6 +974,7 @@ PROMPT;
                     'role' => $this->nullableTrimmedString($lead['role'] ?? $lead['title'] ?? null),
                     'company' => $this->nullableTrimmedString($lead['company'] ?? $lead['company_name'] ?? null),
                     'email' => $this->normalizeEmail($lead['email'] ?? $lead['public_email'] ?? null),
+                    'phone' => $this->normalizePhone($lead['phone'] ?? $lead['telephone'] ?? $lead['mobile'] ?? null),
                     'website' => $website,
                     'linkedin_url' => $linkedinUrl,
                     'social_links' => $socialLinks,
@@ -1080,13 +1124,16 @@ PROMPT;
                     return null;
                 }
 
-                $content = data_get($annotation, 'url_citation.content')
-                    ?? data_get($annotation, 'url_citation.title')
-                    ?? '';
+                $title = data_get($annotation, 'url_citation.title') ?? '';
+                $snippet = data_get($annotation, 'url_citation.content') ?? '';
+                $content = trim(implode("\n", array_filter([
+                    is_string($title) ? $title : '',
+                    is_string($snippet) ? $snippet : '',
+                ])));
 
                 return [
                     'url' => $url,
-                    'content' => is_string($content) ? $content : '',
+                    'content' => $content,
                 ];
             })
             ->filter()
@@ -1188,8 +1235,13 @@ PROMPT;
             return true;
         }
 
-        // Catch "Mr John Doe" style filler.
+        // Catch "Mr John Doe" style filler. Single-token placeholders (mike, bobby)
+        // must not match real people like "Mike Thompson" or "Bobby Gaze".
         foreach ($this->placeholderNames as $placeholder) {
+            if (! str_contains($placeholder, ' ')) {
+                continue;
+            }
+
             if (str_contains($normalized, $placeholder)) {
                 return true;
             }
@@ -1276,6 +1328,138 @@ PROMPT;
         }
 
         return filter_var($value, FILTER_VALIDATE_EMAIL) ? $value : null;
+    }
+
+    protected function normalizePhone(mixed $phone): ?string
+    {
+        $value = $this->nullableTrimmedString($phone);
+
+        if ($value === null) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $value) ?? '';
+
+        if (strlen($digits) < 7) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Drop US/AU/CA namesakes and other clearly non-UK companies.
+     *
+     * @param  array<int, array<string, mixed>>  $leads
+     * @param  array<string, mixed>  $rawResponse
+     * @return array<int, array<string, mixed>>
+     */
+    protected function retainUkLeads(array $leads, array $rawResponse): array
+    {
+        $citationTextsByHost = [];
+
+        foreach ($this->extractCitations($rawResponse) as $citation) {
+            $host = $this->normalizeHost($citation['url']);
+            if ($host !== null) {
+                $citationTextsByHost[$host][] = $citation['content'];
+            }
+        }
+
+        return collect($leads)
+            ->reject(function (array $lead) use ($citationTextsByHost): bool {
+                $hosts = array_values(array_filter([
+                    $this->normalizeHost($lead['website'] ?? null),
+                    $this->normalizeHost($lead['source_url'] ?? null),
+                    $this->emailDomain(isset($lead['email']) ? (string) $lead['email'] : ''),
+                ]));
+
+                $hostEvidence = collect($hosts)
+                    ->flatMap(fn (string $host) => $citationTextsByHost[$host] ?? [])
+                    ->implode("\n");
+
+                return $this->leadIsClearlyNonUk($lead, $hostEvidence);
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $lead
+     */
+    protected function leadIsClearlyNonUk(array $lead, string $hostEvidence = ''): bool
+    {
+        if ($this->companyNameLooksNonUk(isset($lead['company']) ? (string) $lead['company'] : null)) {
+            return true;
+        }
+
+        $hosts = [
+            $this->normalizeHost($lead['website'] ?? null),
+            $this->normalizeHost($lead['source_url'] ?? null),
+            $this->emailDomain(isset($lead['email']) ? (string) $lead['email'] : ''),
+        ];
+
+        foreach ($hosts as $host) {
+            if ($host !== null && $this->hostIsClearlyNonUk($host)) {
+                return true;
+            }
+        }
+
+        $ukHost = collect($hosts)->first(
+            fn (?string $host): bool => $host !== null && $this->hostLooksUk($host),
+        );
+
+        if ($ukHost !== null) {
+            return false;
+        }
+
+        return $hostEvidence !== '' && $this->evidenceLooksNonUk($hostEvidence);
+    }
+
+    protected function companyNameLooksNonUk(?string $company): bool
+    {
+        if (! filled($company)) {
+            return false;
+        }
+
+        return preg_match('/\b(llc|inc\.?|pty|gmbh|s\.?a\.?s\.?)\b/i', $company) === 1;
+    }
+
+    protected function hostLooksUk(string $host): bool
+    {
+        return (bool) preg_match(
+            '/(\.co\.uk|\.org\.uk|\.ltd\.uk|\.me\.uk|\.gov\.uk|\.ac\.uk|\.net\.uk|\.uk\.com|\.uk\.net|\.uk|\.scot|\.wales|\.cymru|\.london|\.gb)$/',
+            $host,
+        );
+    }
+
+    protected function hostIsClearlyNonUk(string $host): bool
+    {
+        if ($this->hostLooksUk($host)) {
+            return false;
+        }
+
+        // US LLC-style hosts: omsgroupllc.com, acme-llc.com
+        if (preg_match('/(^|\.)[a-z0-9-]*llc(\.|$)/i', $host) === 1) {
+            return true;
+        }
+
+        foreach ($this->nonUkTldSuffixes as $suffix) {
+            if ($host === ltrim($suffix, '.') || str_ends_with($host, $suffix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function evidenceLooksNonUk(string $evidence): bool
+    {
+        $haystack = strtolower($evidence);
+
+        return (bool) preg_match(
+            '/\b(united states|u\.s\.a\.?|usa|canada|canadian|australia|llc|pty ltd|gmbh)\b/i',
+            $haystack,
+        );
     }
 
     protected function normalizeUrl(mixed $url): ?string
