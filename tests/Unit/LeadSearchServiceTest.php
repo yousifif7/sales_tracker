@@ -77,11 +77,10 @@ class LeadSearchServiceTest extends TestCase
                 && $request->hasHeader('Authorization', 'Bearer test-key')
                 && data_get($data, 'model') === 'openai/gpt-4o-mini'
                 && data_get($data, 'temperature') === 0
-                && data_get($data, 'tools.0.type') === 'openrouter:web_search'
-                && data_get($data, 'tools.0.parameters.engine') === 'exa'
-                && data_get($data, 'tools.0.parameters.max_uses') === 6
-                && data_get($data, 'tools.0.parameters.search_context_size') === 'medium'
-                && data_get($data, 'max_tool_calls') === 6;
+                && data_get($data, 'plugins.0.id') === 'web'
+                && data_get($data, 'plugins.0.engine') === 'exa'
+                && data_get($data, 'plugins.0.max_results') === 5
+                && ! array_key_exists('tools', $data);
         });
     }
 
@@ -1148,18 +1147,26 @@ class LeadSearchServiceTest extends TestCase
             'openrouter.web_search.require_web_evidence' => false,
             'openrouter.web_search.min_leads' => 1,
             'openrouter.web_search.min_new_leads' => 1,
-            'openrouter.web_search.engine' => 'auto',
+            'openrouter.web_search.engine' => 'exa',
+            'openrouter.web_search.max_diversify_attempts' => 0,
+            'openrouter.web_search.preferred_transport' => 'server_tool',
         ]);
+
+        $serverToolError = [
+            'error' => [
+                'message' => 'Server tool request failed',
+                'code' => 400,
+                'metadata' => ['provider_name' => null],
+            ],
+        ];
 
         Http::fake([
             'openrouter.ai/api/v1/chat/completions' => Http::sequence()
-                ->push([
-                    'error' => [
-                        'message' => 'Server tool request failed',
-                        'code' => 400,
-                        'metadata' => ['provider_name' => null],
-                    ],
-                ], 400)
+                ->push($serverToolError, 400) // server_tool:exa:full
+                ->push($serverToolError, 400) // server_tool:exa
+                ->push($serverToolError, 400) // server_tool:perplexity
+                ->push($serverToolError, 400) // server_tool:parallel
+                ->push($serverToolError, 400) // server_tool:default
                 ->push([
                     'choices' => [
                         [
@@ -1176,7 +1183,7 @@ class LeadSearchServiceTest extends TestCase
                             ],
                         ],
                     ],
-                ], 200),
+                ], 200), // plugin:exa
         ]);
 
         $service = new LeadSearchService(app(Factory::class));
@@ -1184,12 +1191,67 @@ class LeadSearchServiceTest extends TestCase
 
         $this->assertCount(1, $result['results']);
         $this->assertSame('Spencer Martin', $result['results'][0]['name']);
+        $this->assertSame('plugin:exa', $result['raw_response']['_lead_search_transport'] ?? null);
 
-        Http::assertSentCount(2);
+        Http::assertSentCount(6);
 
-        $second = Http::recorded()[1][0]->data();
-        $this->assertSame('exa', data_get($second, 'tools.0.parameters.engine'));
-        $this->assertArrayNotHasKey('user_location', data_get($second, 'tools.0.parameters'));
-        $this->assertArrayNotHasKey('max_characters', data_get($second, 'tools.0.parameters'));
+        $pluginRequest = Http::recorded()[5][0]->data();
+        $this->assertSame('web', data_get($pluginRequest, 'plugins.0.id'));
+        $this->assertSame('exa', data_get($pluginRequest, 'plugins.0.engine'));
+        $this->assertArrayNotHasKey('tools', $pluginRequest);
+    }
+
+    public function test_it_falls_back_to_online_model_when_server_tools_and_plugins_fail(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => false,
+            'openrouter.web_search.min_leads' => 1,
+            'openrouter.web_search.min_new_leads' => 1,
+            'openrouter.web_search.engine' => 'exa',
+            'openrouter.web_search.max_diversify_attempts' => 0,
+            'openrouter.web_search.preferred_transport' => 'online',
+        ]);
+
+        Http::fake(function (Request $request) {
+            $model = (string) data_get($request->data(), 'model');
+
+            if (str_ends_with($model, ':online')) {
+                return Http::response([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Owain Davies',
+                                        'role' => 'Director',
+                                        'company' => 'Castell Security Ltd',
+                                        'website' => 'https://castellsecurityltd.com',
+                                        'source_url' => 'https://castellsecurityltd.com/about',
+                                    ],
+                                ]),
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response([
+                'error' => [
+                    'message' => 'Server tool request failed',
+                    'code' => 400,
+                    'metadata' => ['provider_name' => null],
+                ],
+            ], 400);
+        });
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('South East guarding firms max 5');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Owain Davies', $result['results'][0]['name']);
+        $this->assertSame('model:online', $result['raw_response']['_lead_search_transport'] ?? null);
     }
 }

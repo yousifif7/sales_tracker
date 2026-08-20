@@ -303,59 +303,85 @@ class LeadSearchService
         array $toolParameters,
         int $maxToolCalls,
     ): array {
-        try {
-            return $this->postChatCompletion($model, $system, $user, $toolParameters, $maxToolCalls);
-        } catch (RequestException $exception) {
-            if (! $this->isServerToolFailure($exception)) {
-                throw $this->wrapOpenRouterException($exception);
-            }
+        $attempts = $this->webSearchAttempts($model, $toolParameters, $maxToolCalls);
+        $lastException = null;
 
-            // OpenRouter often 400s on rich web_search params / auto engine — retry lean Exa.
-            $fallback = $this->buildWebSearchToolParameters(
-                engine: 'exa',
-                maxResults: min(5, (int) ($toolParameters['max_results'] ?? 5)),
-                maxUses: min(4, (int) ($toolParameters['max_uses'] ?? 4)),
-                maxTotalResults: min(12, (int) ($toolParameters['max_total_results'] ?? 12)),
-                searchContextSize: 'low',
-                maxCharacters: 1500,
-                minimal: true,
-            );
-
+        foreach ($attempts as $attempt) {
             try {
-                return $this->postChatCompletion(
-                    $model,
-                    $system,
-                    $user,
-                    $fallback,
-                    min($maxToolCalls, (int) $fallback['max_uses']),
-                );
-            } catch (RequestException $retryException) {
-                throw $this->wrapOpenRouterException($retryException);
+                $payload = $this->postChatCompletion($system, $user, $attempt['body']);
+                $payload['_lead_search_transport'] = $attempt['label'];
+
+                return $payload;
+            } catch (RequestException $exception) {
+                $lastException = $exception;
+
+                if (! $this->shouldTryNextWebSearchTransport($exception)) {
+                    throw $this->wrapOpenRouterException($exception);
+                }
             }
         }
+
+        throw $this->wrapOpenRouterException(
+            $lastException ?? throw new RuntimeException('OpenRouter web search exhausted every transport.'),
+        );
     }
 
     /**
+     * Ordered transports. Default prefers the legacy web plugin because OpenRouter's
+     * openrouter:web_search server tool is currently 400ing (provider_name=null).
+     *
      * @param  array<string, mixed>  $toolParameters
-     * @return array<string, mixed>
+     * @return list<array{label: string, body: array<string, mixed>}>
      */
-    protected function postChatCompletion(
-        string $model,
-        string $system,
-        string $user,
-        array $toolParameters,
-        int $maxToolCalls,
-    ): array {
-        $response = $this->http
-            ->withToken(config('openrouter.api_key'))
-            ->acceptJson()
-            ->timeout(150)
-            ->post(rtrim(config('openrouter.base_url'), '/').'/chat/completions', [
-                'model' => $model,
-                'messages' => [
-                    ['role' => 'system', 'content' => $system],
-                    ['role' => 'user', 'content' => $user],
+    protected function webSearchAttempts(string $model, array $toolParameters, int $maxToolCalls): array
+    {
+        $maxToolCalls = max(1, min(30, $maxToolCalls));
+        $maxResults = max(1, min(10, (int) ($toolParameters['max_results'] ?? 5)));
+        $primaryEngine = (string) ($toolParameters['engine'] ?? 'exa');
+        $preferred = strtolower((string) config('openrouter.web_search.preferred_transport', 'plugin'));
+
+        $pluginAttempts = [];
+        foreach (array_values(array_unique([$primaryEngine, 'exa', 'perplexity', 'parallel'])) as $pluginEngine) {
+            $pluginAttempts[] = [
+                'label' => 'plugin:'.$pluginEngine,
+                'body' => [
+                    'model' => $model,
+                    'temperature' => 0,
+                    'plugins' => [
+                        [
+                            'id' => 'web',
+                            'engine' => $pluginEngine,
+                            'max_results' => $maxResults,
+                        ],
+                    ],
                 ],
+            ];
+        }
+
+        $onlineModel = str_ends_with(strtolower($model), ':online')
+            ? $model
+            : $model.':online';
+
+        $onlineAttempts = [[
+            'label' => 'model:online',
+            'body' => [
+                'model' => $onlineModel,
+                'temperature' => 0,
+            ],
+        ]];
+
+        $serverAttempts = [];
+        $engines = array_values(array_unique(array_filter([
+            $primaryEngine,
+            'perplexity',
+            'parallel',
+            'exa',
+        ])));
+
+        $serverAttempts[] = [
+            'label' => 'server_tool:'.$primaryEngine.':full',
+            'body' => [
+                'model' => $model,
                 'temperature' => 0,
                 'tools' => [
                     [
@@ -363,18 +389,117 @@ class LeadSearchService
                         'parameters' => $toolParameters,
                     ],
                 ],
-                'max_tool_calls' => max(1, min(30, $maxToolCalls)),
-            ]);
+                'max_tool_calls' => $maxToolCalls,
+            ],
+        ];
+
+        foreach ($engines as $engine) {
+            $params = [
+                'engine' => $engine,
+                'max_results' => $maxResults,
+                'max_uses' => min(4, (int) ($toolParameters['max_uses'] ?? 4)),
+                'max_total_results' => min(12, (int) ($toolParameters['max_total_results'] ?? 12)),
+            ];
+
+            $serverAttempts[] = [
+                'label' => 'server_tool:'.$engine,
+                'body' => [
+                    'model' => $model,
+                    'temperature' => 0,
+                    'tools' => [
+                        [
+                            'type' => 'openrouter:web_search',
+                            'parameters' => $params,
+                        ],
+                    ],
+                    'max_tool_calls' => min($maxToolCalls, (int) $params['max_uses']),
+                ],
+            ];
+        }
+
+        $serverAttempts[] = [
+            'label' => 'server_tool:default',
+            'body' => [
+                'model' => $model,
+                'temperature' => 0,
+                'tools' => [
+                    ['type' => 'openrouter:web_search'],
+                ],
+                'max_tool_calls' => min($maxToolCalls, 4),
+            ],
+        ];
+
+        $attempts = match ($preferred) {
+            'online' => array_merge($onlineAttempts, $pluginAttempts, $serverAttempts),
+            'server_tool' => array_merge($serverAttempts, $pluginAttempts, $onlineAttempts),
+            default => array_merge($pluginAttempts, $onlineAttempts, $serverAttempts),
+        };
+
+        $seen = [];
+        $unique = [];
+        foreach ($attempts as $attempt) {
+            if (isset($seen[$attempt['label']])) {
+                continue;
+            }
+            $seen[$attempt['label']] = true;
+            $unique[] = $attempt;
+        }
+
+        return $unique;
+    }
+
+    protected function shouldTryNextWebSearchTransport(RequestException $exception): bool
+    {
+        $status = $exception->response?->status();
+        $body = strtolower((string) ($exception->response?->body() ?? ''));
+
+        if ($status === 401 || $status === 402 || $status === 403) {
+            return false;
+        }
+
+        if ($status === 400) {
+            return str_contains($body, 'server tool')
+                || str_contains($body, 'web_search')
+                || str_contains($body, 'plugin')
+                || str_contains($body, 'provider')
+                || str_contains($body, 'engine')
+                || str_contains($body, 'invalid');
+        }
+
+        // Transient upstream failures — try another engine/transport.
+        return in_array($status, [408, 429, 500, 502, 503, 504], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     * @return array<string, mixed>
+     */
+    protected function postChatCompletion(string $system, string $user, array $body): array
+    {
+        unset($body['_tool_parameters']);
+
+        $payload = array_merge($body, [
+            'messages' => [
+                ['role' => 'system', 'content' => $system],
+                ['role' => 'user', 'content' => $user],
+            ],
+        ]);
+
+        $response = $this->http
+            ->withToken(config('openrouter.api_key'))
+            ->acceptJson()
+            ->timeout(150)
+            ->post(rtrim(config('openrouter.base_url'), '/').'/chat/completions', $payload);
 
         $response->throw();
 
-        $payload = $response->json();
+        $json = $response->json();
 
-        if (! is_array($payload) || ! is_string(data_get($payload, 'choices.0.message.content'))) {
+        if (! is_array($json) || ! is_string(data_get($json, 'choices.0.message.content'))) {
             throw new RuntimeException('OpenRouter did not return a message payload.');
         }
 
-        return $payload;
+        return $json;
     }
 
     protected function isServerToolFailure(RequestException $exception): bool

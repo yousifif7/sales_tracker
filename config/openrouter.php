@@ -8,16 +8,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Web search budget (OpenRouter server tool)
+    | Web search budget
     |--------------------------------------------------------------------------
     |
-    | Each Exa/Perplexity search costs ~$0.005 plus the tokens injected into
-    | the prompt. Balanced defaults: enough searches for real verification,
-    | without the previous high-context / 10-search spend.
+    | OpenRouter's openrouter:web_search server tool has been intermittently
+    | returning 400 "Server tool request failed" (provider_name=null). Prefer
+    | the legacy web plugin / :online first; keep server tools as fallback.
+    |
+    | preferred_transport: plugin | online | server_tool
     |
     */
     'web_search' => [
-        // gpt-4o-mini has no native search; "auto" can 400 with provider_name=null — prefer Exa.
+        'preferred_transport' => env('OPENROUTER_WEB_SEARCH_TRANSPORT', 'plugin'),
+        // gpt-4o-mini has no native search; use exa/perplexity via plugin or server tool.
         'engine' => env('OPENROUTER_WEB_SEARCH_ENGINE', 'exa'),
         'max_results' => (int) env('OPENROUTER_WEB_SEARCH_MAX_RESULTS', 5),
         'max_uses' => (int) env('OPENROUTER_WEB_SEARCH_MAX_USES', 6),
