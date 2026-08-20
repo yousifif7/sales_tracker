@@ -104,13 +104,13 @@ class HtmlContentTest extends TestCase
 
     public function test_style_outbound_adds_inline_styles_to_paragraphs_and_lists(): void
     {
-        $html = '<p>Hello</p><ul><li>One</li></ul><a href="https://fieldline.yousiffarra.com">Demo</a>';
+        $html = '<p>Hello</p><ul><li>One</li></ul><a href="https://fieldline-wf.com">Demo</a>';
 
         $styled = HtmlContent::styleOutbound($html);
 
         $this->assertStringContainsString('margin:0 0 14px 0', $styled);
         $this->assertStringContainsString('<li style="margin:0 0 8px 0', $styled);
-        $this->assertStringContainsString('href="https://fieldline.yousiffarra.com"', $styled);
+        $this->assertStringContainsString('href="https://fieldline-wf.com"', $styled);
         $this->assertStringContainsString('color:#0284c7', $styled);
     }
 }

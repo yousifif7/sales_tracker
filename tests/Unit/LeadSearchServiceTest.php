@@ -78,9 +78,10 @@ class LeadSearchServiceTest extends TestCase
                 && data_get($data, 'model') === 'openai/gpt-4o-mini'
                 && data_get($data, 'temperature') === 0
                 && data_get($data, 'tools.0.type') === 'openrouter:web_search'
-                && data_get($data, 'tools.0.parameters.max_uses') === 8
+                && data_get($data, 'tools.0.parameters.engine') === 'exa'
+                && data_get($data, 'tools.0.parameters.max_uses') === 6
                 && data_get($data, 'tools.0.parameters.search_context_size') === 'medium'
-                && data_get($data, 'max_tool_calls') === 8;
+                && data_get($data, 'max_tool_calls') === 6;
         });
     }
 
@@ -1136,5 +1137,59 @@ class LeadSearchServiceTest extends TestCase
         $refillPrompt = (string) data_get(Http::recorded()[1][0]->data(), 'messages.1.content');
         $this->assertStringContainsString('csmsecurity.co.uk', $refillPrompt);
         $this->assertStringNotContainsString('omsgroupllc.com', $refillPrompt);
+    }
+
+    public function test_it_retries_with_minimal_exa_params_after_server_tool_400(): void
+    {
+        config([
+            'openrouter.api_key' => 'test-key',
+            'openrouter.model' => 'openai/gpt-4o-mini',
+            'openrouter.base_url' => 'https://openrouter.ai/api/v1',
+            'openrouter.web_search.require_web_evidence' => false,
+            'openrouter.web_search.min_leads' => 1,
+            'openrouter.web_search.min_new_leads' => 1,
+            'openrouter.web_search.engine' => 'auto',
+        ]);
+
+        Http::fake([
+            'openrouter.ai/api/v1/chat/completions' => Http::sequence()
+                ->push([
+                    'error' => [
+                        'message' => 'Server tool request failed',
+                        'code' => 400,
+                        'metadata' => ['provider_name' => null],
+                    ],
+                ], 400)
+                ->push([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => json_encode([
+                                    [
+                                        'name' => 'Spencer Martin',
+                                        'role' => 'Managing Director',
+                                        'company' => 'CSM Security',
+                                        'website' => 'https://csmsecurity.co.uk',
+                                        'source_url' => 'https://csmsecurity.co.uk/meet-the-team/',
+                                    ],
+                                ]),
+                            ],
+                        ],
+                    ],
+                ], 200),
+        ]);
+
+        $service = new LeadSearchService(app(Factory::class));
+        $result = $service->search('South East guarding firms max 5');
+
+        $this->assertCount(1, $result['results']);
+        $this->assertSame('Spencer Martin', $result['results'][0]['name']);
+
+        Http::assertSentCount(2);
+
+        $second = Http::recorded()[1][0]->data();
+        $this->assertSame('exa', data_get($second, 'tools.0.parameters.engine'));
+        $this->assertArrayNotHasKey('user_location', data_get($second, 'tools.0.parameters'));
+        $this->assertArrayNotHasKey('max_characters', data_get($second, 'tools.0.parameters'));
     }
 }

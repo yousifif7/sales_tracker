@@ -8,12 +8,17 @@
                 <p class="mt-2 max-h-24 overflow-y-auto whitespace-pre-wrap text-sm text-slate-300">{{ $leadSearch->criteria }}</p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
+                @php
+                    $isFailed = (bool) data_get($leadSearch->raw_results, 'failed');
+                    $isReady = filled($leadSearch->raw_results) && ! $isFailed;
+                @endphp
                 <span @class([
                     'inline-flex rounded-full px-3 py-1 text-xs font-semibold',
-                    'bg-emerald-500/15 text-emerald-200' => filled($leadSearch->raw_results),
-                    'bg-amber-500/15 text-amber-200' => blank($leadSearch->raw_results),
+                    'bg-emerald-500/15 text-emerald-200' => $isReady,
+                    'bg-rose-500/15 text-rose-200' => $isFailed,
+                    'bg-amber-500/15 text-amber-200' => ! $isReady && ! $isFailed,
                 ])>
-                    {{ filled($leadSearch->raw_results) ? 'Ready' : 'Still running…' }}
+                    {{ $isFailed ? 'Failed' : ($isReady ? 'Ready' : 'Still running…') }}
                 </span>
                 <a class="btn-secondary" href="{{ route('lead-searches.index') }}">Back</a>
                 @can(\App\Support\Permissions::LEAD_SEARCHES_DELETE)
@@ -26,6 +31,13 @@
             </div>
         </div>
     </section>
+
+    @if (filled(data_get($leadSearch->raw_results, 'error')))
+        <section class="panel mt-6 border-rose-500/30 bg-rose-500/5">
+            <h2 class="text-sm font-semibold text-rose-200">Search failed</h2>
+            <p class="mt-2 text-sm text-slate-300">{{ data_get($leadSearch->raw_results, 'error') }}</p>
+        </section>
+    @endif
 
     @if (filled(data_get($leadSearch->raw_results, 'diagnostics.summary')))
         <section class="panel mt-6 border-amber-500/30 bg-amber-500/5">
@@ -112,7 +124,11 @@
             @empty
                 <tr>
                     <td colspan="7" class="text-center text-slate-500">
-                        {{ filled($leadSearch->raw_results) ? 'No leads were returned.' : 'Results will appear once the job finishes. Refresh in a minute.' }}
+                        {{ filled($leadSearch->raw_results)
+                            ? ((bool) data_get($leadSearch->raw_results, 'failed')
+                                ? 'Search failed — see error above.'
+                                : 'No leads were returned.')
+                            : 'Results will appear once the job finishes. Refresh in a minute.' }}
                     </td>
                 </tr>
             @endforelse

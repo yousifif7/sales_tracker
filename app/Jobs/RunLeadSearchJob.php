@@ -9,9 +9,13 @@ use App\Models\LeadSearchQuery;
 use App\Services\LeadSearchService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Queue\InteractsWithQueue;
+use Throwable;
 
 class RunLeadSearchJob implements ShouldQueue
 {
+    use InteractsWithQueue;
     use Queueable;
 
     public int $tries = 3;
@@ -26,7 +30,19 @@ class RunLeadSearchJob implements ShouldQueue
     public function handle(LeadSearchService $leadSearchService): void
     {
         $leadSearchQuery = LeadSearchQuery::query()->findOrFail($this->leadSearchQueryId);
-        $searchResult = $leadSearchService->search($leadSearchQuery->criteria);
+
+        try {
+            $searchResult = $leadSearchService->search($leadSearchQuery->criteria);
+        } catch (Throwable $exception) {
+            $this->persistFailure($leadSearchQuery, $exception);
+
+            // OpenRouter server-tool 400s will not heal by retrying three times.
+            if ($leadSearchService->isNonRetryableFailure($exception)) {
+                return;
+            }
+
+            throw $exception;
+        }
 
         // Extra safety net — service already excludes, but never re-import known contacts.
         $searchResult['results'] = $leadSearchService->excludeExistingContacts($searchResult['results'] ?? []);
@@ -65,6 +81,49 @@ class RunLeadSearchJob implements ShouldQueue
                 'notes' => $notes,
             ]);
         }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $leadSearchQuery = LeadSearchQuery::query()->find($this->leadSearchQueryId);
+
+        if ($leadSearchQuery === null) {
+            return;
+        }
+
+        // Avoid overwriting a successful result if somehow failed() races.
+        if (filled(data_get($leadSearchQuery->raw_results, 'results'))) {
+            return;
+        }
+
+        $this->persistFailure($leadSearchQuery, $exception ?? new \RuntimeException('Lead search job failed.'));
+    }
+
+    protected function persistFailure(LeadSearchQuery $leadSearchQuery, Throwable $exception): void
+    {
+        $message = $exception->getMessage();
+
+        if ($exception instanceof RequestException) {
+            $message = (string) data_get(
+                $exception->response?->json(),
+                'error.message',
+                $message,
+            );
+        }
+
+        $leadSearchQuery->update([
+            'raw_results' => [
+                'results' => [],
+                'failed' => true,
+                'error' => $message,
+                'diagnostics' => [
+                    'summary' => 'AI lead search failed: '.$message,
+                    'usable_leads' => 0,
+                    'model_returned' => 0,
+                ],
+                'raw_response' => null,
+            ],
+        ]);
     }
 
     /**

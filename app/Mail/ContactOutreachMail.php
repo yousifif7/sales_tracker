@@ -87,8 +87,8 @@ class ContactOutreachMail extends Mailable
                 'bodyHtml' => $this->bodyHtml,
                 'bodyText' => $this->bodyText,
                 'signatureName' => (string) ($signature['name'] ?? config('mail.from.name', 'Yousif Elfarra')),
-                'signatureTitle' => (string) ($signature['title'] ?? 'FieldLine — white-label security control room'),
-                'signatureWebsite' => (string) ($signature['website'] ?? 'https://fieldline.yousiffarra.com'),
+                'signatureTitle' => (string) ($signature['title'] ?? 'Founder, FieldLine — white-label security control room'),
+                'signatureWebsite' => (string) ($signature['website'] ?? 'https://fieldline-wf.com'),
                 'signatureEmail' => (string) ($signature['email'] ?? config('mail.from.address', '')),
                 'trackingPixelUrl' => filled($this->trackingToken)
                     ? route('email.tracking.open', ['token' => $this->trackingToken])

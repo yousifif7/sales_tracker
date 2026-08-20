@@ -3,8 +3,8 @@
 return [
     'signature' => [
         'name' => env('OUTREACH_SIGNATURE_NAME', env('MAIL_FROM_NAME', 'Yousif Elfarra')),
-        'title' => env('OUTREACH_SIGNATURE_TITLE', 'FieldLine — white-label security control room'),
-        'website' => env('OUTREACH_SIGNATURE_WEBSITE', 'https://fieldline.yousiffarra.com'),
+        'title' => env('OUTREACH_SIGNATURE_TITLE', 'Founder, FieldLine — white-label security control room'),
+        'website' => env('OUTREACH_SIGNATURE_WEBSITE', 'https://fieldline-wf.com'),
         'email' => env('OUTREACH_SIGNATURE_EMAIL', env('MAIL_FROM_ADDRESS', 'yousif@yousiffarra.com')),
     ],
 
@@ -39,7 +39,7 @@ Hi {{first_name}},
 
 Most UK guarding firms rent their control-room software every month. FieldLine is different — a white-label platform you own: live GPS, rota, digital DOB, incidents, client portal, and a guard app.
 
-Demo: https://fieldline.yousiffarra.com
+Demo: https://fieldline-wf.com
 
 If that sounds useful for {{company}}, reply with a time that works for a 15-min video walkthrough.
 
@@ -58,7 +58,7 @@ Quick bump in case this got buried.
 
 A lot of multi-site firms I speak to are still running shifts on WhatsApp and incidents on paper. FieldLine puts tracking, DOB, and client reporting into one control room you own — not a monthly SaaS rent.
 
-Demo: https://fieldline.yousiffarra.com
+Demo: https://fieldline-wf.com
 
 Worth a 15-min video look for {{company}}? Reply with a time that works.
 
@@ -79,7 +79,7 @@ FieldLine is a one-time white-label license (typically around the $10k mark depe
 
 If now isn't the right time, no worries at all.
 
-https://fieldline.yousiffarra.com
+https://fieldline-wf.com
 
 Best,
 Yousif
@@ -96,7 +96,7 @@ Could you please forward this to whoever handles ops / control room systems at {
 
 I've built FieldLine — a white-label security control room + guard app (live GPS, rota, digital DOB, incidents, client portal) that firms own instead of renting monthly SaaS.
 
-Demo: https://fieldline.yousiffarra.com
+Demo: https://fieldline-wf.com
 
 Happy to do a 15-min video walkthrough if useful.
 
@@ -115,7 +115,7 @@ Quick question for {{company}}: with guards across multiple sites, how does ops 
 
 FieldLine is a white-label control room you own: live GPS, rota, digital DOB, incident reports, exports, and a client portal — plus a guard app for check-ins and patrols.
 
-Demo: https://fieldline.yousiffarra.com
+Demo: https://fieldline-wf.com
 
 Reply with a time for a 15-min video walkthrough if useful.
 
@@ -128,7 +128,7 @@ BODY,
             'active' => true,
             'subject' => 'LinkedIn note — {{company}}',
             'body' => <<<'BODY'
-Hi {{first_name}}, — built a white-label control room + guard app for UK multi-site guarding firms (own vs monthly SaaS rent). Demo: fieldline.yousiffarra.com — open to a short video walkthrough if useful?
+Hi {{first_name}}, — I run FieldLine, a white-label control room + guard app for UK multi-site guarding firms (own vs monthly SaaS rent). Demo: https://fieldline-wf.com — open to a short video walkthrough if useful?
 BODY,
         ],
 
@@ -142,7 +142,7 @@ Hi {{first_name}},
 
 I've built FieldLine, a control-room platform for security firms — scheduling, live site tracking, digital DOB, incident reports, invoicing, and a branded client portal, plus a guard mobile app for check-ins, patrols, and panic alerts.
 
-You can see it here: https://fieldline.yousiffarra.com
+You can see it here: https://fieldline-wf.com
 
 Would you be open to a quick call to walk through it and see if it's a fit for {{company}}?
 

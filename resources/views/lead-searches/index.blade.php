@@ -20,7 +20,8 @@
             @forelse ($leadSearches as $leadSearch)
                 @php
                     $resultCount = count($leadSearch->raw_results['results'] ?? []);
-                    $isReady = filled($leadSearch->raw_results);
+                    $isFailed = (bool) data_get($leadSearch->raw_results, 'failed');
+                    $isReady = filled($leadSearch->raw_results) && ! $isFailed;
                 @endphp
                 <tr>
                     <td class="whitespace-nowrap text-slate-300">{{ $leadSearch->created_at->format('M d, H:i') }}</td>
@@ -33,9 +34,10 @@
                         <span @class([
                             'rounded-full px-2 py-1 text-xs font-semibold',
                             'bg-emerald-500/15 text-emerald-200' => $isReady,
-                            'bg-amber-500/15 text-amber-200' => ! $isReady,
+                            'bg-rose-500/15 text-rose-200' => $isFailed,
+                            'bg-amber-500/15 text-amber-200' => ! $isReady && ! $isFailed,
                         ])>
-                            {{ $isReady ? 'Ready' : 'Pending' }}
+                            {{ $isFailed ? 'Failed' : ($isReady ? 'Ready' : 'Pending') }}
                         </span>
                     </td>
                     <td class="text-right whitespace-nowrap">

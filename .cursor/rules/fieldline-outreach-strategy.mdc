@@ -7,9 +7,10 @@ alwaysApply: true
 
 ## Product
 - **FieldLine**: white-label security control room + guard mobile app (live GPS, rota, incidents/DOB, client portal, exports, book on/off, patrols, check-calls).
-- Demo: https://fieldline.yousiffarra.com
+- Demo: https://fieldline-wf.com
 - Model: **one-time white-label license** (own), not monthly SaaS rent. Soft price signal ~$10k in late-sequence only.
-- Builder: Yousif Elfarra. Portfolio/blog: yousiffarra.com (Laravel / CRM case-study tone — no “stole client project” framing).
+- Builder: Yousif Elfarra (Founder, FieldLine). Portfolio/blog: yousiffarra.com (Laravel / CRM case-study tone — no “stole client project” framing).
+- Domain note: `fieldline-wf.com` (wf = Workforce). Prefer this over any personal subdomain in outreach.
 
 ## ICP (ideal)
 - UK **manned guarding / static multi-site** security firms

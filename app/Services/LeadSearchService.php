@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Contact;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Client\RequestException;
 use RuntimeException;
 
 class LeadSearchService
@@ -100,19 +101,14 @@ class LeadSearchService
         $minNewLeads = max(1, min($maxLeads, (int) ($webSearch['min_new_leads'] ?? 2)));
         $maxDiversifyAttempts = max(0, (int) ($webSearch['max_diversify_attempts'] ?? 3));
 
-        $toolParameters = [
-            'engine' => (string) ($webSearch['engine'] ?? 'auto'),
-            'max_results' => $maxResults,
-            'max_uses' => $maxUses,
-            'max_total_results' => $maxTotalResults,
-            'search_context_size' => (string) ($webSearch['search_context_size'] ?? 'medium'),
-            'max_characters' => $maxCharacters,
-            'user_location' => [
-                'type' => 'approximate',
-                'country' => 'GB',
-                'timezone' => 'Europe/London',
-            ],
-        ];
+        $toolParameters = $this->buildWebSearchToolParameters(
+            engine: (string) ($webSearch['engine'] ?? 'exa'),
+            maxResults: $maxResults,
+            maxUses: $maxUses,
+            maxTotalResults: $maxTotalResults,
+            searchContextSize: (string) ($webSearch['search_context_size'] ?? 'medium'),
+            maxCharacters: $maxCharacters,
+        );
 
         $rawResponse = $this->chatCompletion(
             model: $model,
@@ -257,10 +253,93 @@ class LeadSearchService
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    protected function buildWebSearchToolParameters(
+        string $engine,
+        int $maxResults,
+        int $maxUses,
+        int $maxTotalResults,
+        string $searchContextSize,
+        int $maxCharacters,
+        bool $minimal = false,
+    ): array {
+        $parameters = [
+            'engine' => $engine !== '' ? $engine : 'exa',
+            'max_results' => max(1, min(25, $maxResults)),
+            'max_uses' => max(1, $maxUses),
+            'max_total_results' => max(1, $maxTotalResults),
+        ];
+
+        if ($minimal) {
+            return $parameters;
+        }
+
+        $parameters['search_context_size'] = in_array($searchContextSize, ['low', 'medium', 'high'], true)
+            ? $searchContextSize
+            : 'medium';
+        $parameters['max_characters'] = max(800, min(100000, $maxCharacters));
+
+        // Exa/Perplexity ignore this; keep it only for native-capable models when asked.
+        if (($parameters['engine'] === 'native' || $parameters['engine'] === 'auto')) {
+            $parameters['user_location'] = [
+                'type' => 'approximate',
+                'country' => 'GB',
+                'timezone' => 'Europe/London',
+            ];
+        }
+
+        return $parameters;
+    }
+
+    /**
      * @param  array<string, mixed>  $toolParameters
      * @return array<string, mixed>
      */
     protected function chatCompletion(
+        string $model,
+        string $system,
+        string $user,
+        array $toolParameters,
+        int $maxToolCalls,
+    ): array {
+        try {
+            return $this->postChatCompletion($model, $system, $user, $toolParameters, $maxToolCalls);
+        } catch (RequestException $exception) {
+            if (! $this->isServerToolFailure($exception)) {
+                throw $this->wrapOpenRouterException($exception);
+            }
+
+            // OpenRouter often 400s on rich web_search params / auto engine — retry lean Exa.
+            $fallback = $this->buildWebSearchToolParameters(
+                engine: 'exa',
+                maxResults: min(5, (int) ($toolParameters['max_results'] ?? 5)),
+                maxUses: min(4, (int) ($toolParameters['max_uses'] ?? 4)),
+                maxTotalResults: min(12, (int) ($toolParameters['max_total_results'] ?? 12)),
+                searchContextSize: 'low',
+                maxCharacters: 1500,
+                minimal: true,
+            );
+
+            try {
+                return $this->postChatCompletion(
+                    $model,
+                    $system,
+                    $user,
+                    $fallback,
+                    min($maxToolCalls, (int) $fallback['max_uses']),
+                );
+            } catch (RequestException $retryException) {
+                throw $this->wrapOpenRouterException($retryException);
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $toolParameters
+     * @return array<string, mixed>
+     */
+    protected function postChatCompletion(
         string $model,
         string $system,
         string $user,
@@ -284,7 +363,7 @@ class LeadSearchService
                         'parameters' => $toolParameters,
                     ],
                 ],
-                'max_tool_calls' => $maxToolCalls,
+                'max_tool_calls' => max(1, min(30, $maxToolCalls)),
             ]);
 
         $response->throw();
@@ -296,6 +375,49 @@ class LeadSearchService
         }
 
         return $payload;
+    }
+
+    protected function isServerToolFailure(RequestException $exception): bool
+    {
+        $status = $exception->response?->status();
+        $body = (string) ($exception->response?->body() ?? '');
+
+        return $status === 400
+            && (
+                str_contains($body, 'Server tool request failed')
+                || str_contains($body, 'server tool')
+                || str_contains($body, 'web_search')
+            );
+    }
+
+    protected function wrapOpenRouterException(RequestException $exception): RuntimeException
+    {
+        $status = $exception->response?->status();
+        $message = (string) data_get($exception->response?->json(), 'error.message', $exception->getMessage());
+        $provider = data_get($exception->response?->json(), 'error.metadata.provider_name');
+
+        $detail = trim(sprintf(
+            'OpenRouter lead search failed (%s): %s%s',
+            $status ?? 'unknown',
+            $message,
+            filled($provider) ? " [provider: {$provider}]" : '',
+        ));
+
+        return new RuntimeException($detail, (int) ($status ?? 0), $exception);
+    }
+
+    /**
+     * True when retrying the queue job will not help (bad tool config / provider outage shape).
+     */
+    public function isNonRetryableFailure(\Throwable $exception): bool
+    {
+        if ($exception instanceof RequestException) {
+            return $this->isServerToolFailure($exception);
+        }
+
+        $previous = $exception->getPrevious();
+
+        return $previous instanceof RequestException && $this->isServerToolFailure($previous);
     }
 
     protected function systemPrompt(): string
