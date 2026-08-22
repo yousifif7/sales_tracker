@@ -274,6 +274,85 @@ class OutreachSequenceServiceTest extends TestCase
         $this->assertSame(0, $stats['exited']);
     }
 
+    public function test_mark_step_complete_advances_followup_to_nudge(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2025-08-20 10:00:00', 'Europe/London'));
+
+        [$contact, $thread, $message] = $this->makeColdSend(
+            enrolledAt: Carbon::parse('2025-08-14 11:00:00', 'Europe/London'),
+        );
+
+        $enrollment = app(OutreachSequenceService::class)->enroll($contact, $thread, $message);
+        app(OutreachSequenceService::class)->markStepComplete($enrollment);
+
+        $enrollment->refresh();
+
+        $this->assertNotNull($enrollment->followup_sent_at);
+        $this->assertSame(EmailSequenceNextStep::Nudge, $enrollment->next_step);
+        $this->assertSame(
+            BusinessDays::addAfter($message->sent_at, 8)->toDateTimeString(),
+            $enrollment->next_action_at->toDateTimeString(),
+        );
+    }
+
+    public function test_reactivate_and_retry_after_missing_template(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2025-08-20 10:00:00', 'Europe/London'));
+
+        [$contact, $thread, $message] = $this->makeColdSend(
+            enrolledAt: Carbon::parse('2025-08-14 11:00:00', 'Europe/London'),
+        );
+
+        $enrollment = EmailSequenceEnrollment::query()->create([
+            'contact_id' => $contact->id,
+            'email_thread_id' => $thread->id,
+            'cold_message_id' => $message->id,
+            'status' => EmailSequenceStatus::Completed,
+            'next_step' => EmailSequenceNextStep::Followup,
+            'next_action_at' => null,
+            'enrolled_at' => $message->sent_at,
+            'completed_at' => now(),
+            'exit_reason' => EmailSequenceExitReason::MissingTemplate,
+            'cold_subject' => 'Own vs rent — control room for Acme',
+            'followup_template_slug' => 'fieldline_followup',
+            'nudge_template_slug' => 'fieldline_final_nudge',
+        ]);
+
+        EmailTemplate::query()->create([
+            'name' => 'FieldLine follow-up',
+            'slug' => 'fieldline_followup',
+            'subject' => 'Re: Own vs rent — control room for {{company}}',
+            'body' => '<p>Quick bump</p>',
+            'is_active' => true,
+        ]);
+
+        $service = app(OutreachSequenceService::class);
+        $this->assertTrue($service->canReactivate($enrollment));
+
+        $result = $service->retry($enrollment);
+
+        $this->assertSame('sent', $result['outcome']);
+
+        $enrollment->refresh();
+        $this->assertSame(EmailSequenceStatus::Active, $enrollment->status);
+        $this->assertNull($enrollment->exit_reason);
+        $this->assertNotNull($enrollment->followup_sent_at);
+        $this->assertSame(EmailSequenceNextStep::Nudge, $enrollment->next_step);
+    }
+
+    public function test_bulk_cancel_stops_active_enrollments(): void
+    {
+        [$contact, $thread, $message] = $this->makeColdSend();
+        $enrollment = app(OutreachSequenceService::class)->enroll($contact, $thread, $message);
+
+        $stats = app(OutreachSequenceService::class)->bulkCancel([$enrollment->id]);
+
+        $enrollment->refresh();
+        $this->assertSame(1, $stats['cancelled']);
+        $this->assertSame(EmailSequenceStatus::Completed, $enrollment->status);
+        $this->assertSame(EmailSequenceExitReason::Cancelled, $enrollment->exit_reason);
+    }
+
     /**
      * @return array{0: Contact, 1: EmailThread, 2: EmailMessage}
      */

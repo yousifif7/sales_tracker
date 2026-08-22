@@ -96,10 +96,9 @@
                         </p>
                     </div>
                     @can(\App\Support\Permissions::EMAILS_SEND)
-                        <form method="post" action="{{ route('contacts.sequence.cancel', $contact) }}" onsubmit="return confirm('Cancel automated follow-ups for this contact?')">
-                            @csrf
-                            <button class="btn-secondary" type="submit">Cancel sequence</button>
-                        </form>
+                        <div class="mt-4 border-t border-slate-800 pt-4">
+                            <x-sequence-manage-actions :enrollment="$activeSequence" :contact="$contact" />
+                        </div>
                     @endcan
                 </div>
             </section>

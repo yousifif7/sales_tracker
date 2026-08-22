@@ -27,7 +27,7 @@ class ContactSequenceController extends Controller
         $sequences->complete($enrollment, EmailSequenceExitReason::Cancelled);
 
         return redirect()
-            ->route('contacts.show', $contact)
+            ->back(fallback: route('contacts.show', $contact))
             ->with('status', 'Email sequence cancelled. No further automated follow-ups will send.');
     }
 }

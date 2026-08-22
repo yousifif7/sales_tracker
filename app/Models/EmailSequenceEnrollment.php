@@ -83,4 +83,52 @@ class EmailSequenceEnrollment extends Model
     {
         return $this->status === EmailSequenceStatus::Active;
     }
+
+    public function canMarkCurrentStepComplete(): bool
+    {
+        return $this->isActive() && in_array($this->next_step, [
+            EmailSequenceNextStep::Followup,
+            EmailSequenceNextStep::Nudge,
+        ], true);
+    }
+
+    public function canSendNow(): bool
+    {
+        return $this->isActive() && in_array($this->next_step, [
+            EmailSequenceNextStep::Followup,
+            EmailSequenceNextStep::Nudge,
+            EmailSequenceNextStep::Exit,
+        ], true);
+    }
+
+    public function canReactivate(): bool
+    {
+        if ($this->status !== EmailSequenceStatus::Completed) {
+            return false;
+        }
+
+        return in_array($this->exit_reason, [
+            EmailSequenceExitReason::MissingTemplate,
+            EmailSequenceExitReason::SendFailed,
+        ], true);
+    }
+
+    public function markStepCompleteLabel(): ?string
+    {
+        return match ($this->next_step) {
+            EmailSequenceNextStep::Followup => 'Mark follow-up sent',
+            EmailSequenceNextStep::Nudge => 'Mark nudge sent',
+            default => null,
+        };
+    }
+
+    public function sendNowLabel(): string
+    {
+        return match ($this->next_step) {
+            EmailSequenceNextStep::Followup => 'Send follow-up now',
+            EmailSequenceNextStep::Nudge => 'Send nudge now',
+            EmailSequenceNextStep::Exit => 'Run exit check now',
+            default => 'Send now',
+        };
+    }
 }

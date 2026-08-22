@@ -88,6 +88,224 @@ class OutreachSequenceService
         ]);
     }
 
+    public function markStepComplete(EmailSequenceEnrollment $enrollment): void
+    {
+        if (! $enrollment->canMarkCurrentStepComplete()) {
+            throw new \InvalidArgumentException('This enrollment cannot mark the current step complete.');
+        }
+
+        match ($enrollment->next_step) {
+            EmailSequenceNextStep::Followup => $enrollment->update([
+                'followup_sent_at' => now(),
+                'next_step' => EmailSequenceNextStep::Nudge,
+                'next_action_at' => BusinessDays::addAfter(
+                    $enrollment->enrolled_at,
+                    (int) config('outreach.sequence.nudge_business_days', 8),
+                ),
+            ]),
+            EmailSequenceNextStep::Nudge => $enrollment->update([
+                'nudge_sent_at' => now(),
+                'next_step' => EmailSequenceNextStep::Exit,
+                'next_action_at' => BusinessDays::addAfter(
+                    $enrollment->enrolled_at,
+                    (int) config('outreach.sequence.exit_business_days', 15),
+                ),
+            ]),
+            default => throw new \InvalidArgumentException('No manual step to mark for this enrollment.'),
+        };
+    }
+
+    public function canReactivate(EmailSequenceEnrollment $enrollment): bool
+    {
+        if ($enrollment->status !== EmailSequenceStatus::Completed) {
+            return false;
+        }
+
+        if (! in_array($enrollment->exit_reason, [
+            EmailSequenceExitReason::MissingTemplate,
+            EmailSequenceExitReason::SendFailed,
+        ], true)) {
+            return false;
+        }
+
+        $contact = $enrollment->contact;
+
+        if (! $contact) {
+            return false;
+        }
+
+        return ! $this->activeEnrollmentFor($contact);
+    }
+
+    public function reactivate(EmailSequenceEnrollment $enrollment): bool
+    {
+        if (! $this->canReactivate($enrollment)) {
+            return false;
+        }
+
+        $enrollment->update([
+            'status' => EmailSequenceStatus::Active,
+            'exit_reason' => null,
+            'completed_at' => null,
+            'next_step' => $this->inferNextStep($enrollment),
+            'next_action_at' => now(),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * @return array{outcome: string, exit_reason?: string, message?: string}
+     */
+    public function sendNow(EmailSequenceEnrollment $enrollment): array
+    {
+        if (! $enrollment->canSendNow()) {
+            return ['outcome' => 'skipped', 'message' => 'Enrollment is not ready to send.'];
+        }
+
+        return $this->processEnrollment(
+            $enrollment->fresh(['contact', 'thread', 'coldMessage']),
+        );
+    }
+
+    /**
+     * @return array{outcome: string, exit_reason?: string, message?: string, reactivated?: bool}
+     */
+    public function retry(EmailSequenceEnrollment $enrollment): array
+    {
+        if (! $this->reactivate($enrollment)) {
+            return ['outcome' => 'skipped', 'message' => 'This enrollment cannot be retried.'];
+        }
+
+        $result = $this->sendNow($enrollment->fresh(['contact', 'thread', 'coldMessage']));
+        $result['reactivated'] = true;
+
+        return $result;
+    }
+
+    protected function inferNextStep(EmailSequenceEnrollment $enrollment): EmailSequenceNextStep
+    {
+        if (! $enrollment->followup_sent_at) {
+            return EmailSequenceNextStep::Followup;
+        }
+
+        if (! $enrollment->nudge_sent_at) {
+            return EmailSequenceNextStep::Nudge;
+        }
+
+        return EmailSequenceNextStep::Exit;
+    }
+
+    /**
+     * @param  list<int>  $enrollmentIds
+     * @return array{cancelled: int, skipped: int}
+     */
+    public function bulkCancel(array $enrollmentIds): array
+    {
+        $stats = ['cancelled' => 0, 'skipped' => 0];
+
+        EmailSequenceEnrollment::query()
+            ->active()
+            ->whereIn('id', $enrollmentIds)
+            ->each(function (EmailSequenceEnrollment $enrollment) use (&$stats): void {
+                $this->complete($enrollment, EmailSequenceExitReason::Cancelled);
+                $stats['cancelled']++;
+            });
+
+        $stats['skipped'] = max(0, count($enrollmentIds) - $stats['cancelled']);
+
+        return $stats;
+    }
+
+    /**
+     * @param  list<int>  $enrollmentIds
+     * @return array{sent: int, exited: int, skipped: int, errors: int}
+     */
+    public function bulkSendNow(array $enrollmentIds): array
+    {
+        $stats = ['sent' => 0, 'exited' => 0, 'skipped' => 0, 'errors' => 0];
+
+        EmailSequenceEnrollment::query()
+            ->whereIn('id', $enrollmentIds)
+            ->with(['contact', 'thread', 'coldMessage'])
+            ->each(function (EmailSequenceEnrollment $enrollment) use (&$stats): void {
+                try {
+                    $result = $this->sendNow($enrollment);
+                    match ($result['outcome'] ?? 'skipped') {
+                        'sent' => $stats['sent']++,
+                        'exited' => $stats['exited']++,
+                        default => $stats['skipped']++,
+                    };
+                } catch (Throwable $exception) {
+                    report($exception);
+                    $stats['errors']++;
+                }
+            });
+
+        return $stats;
+    }
+
+    /**
+     * @param  list<int>  $enrollmentIds
+     * @return array{retried: int, sent: int, exited: int, skipped: int, errors: int}
+     */
+    public function bulkRetry(array $enrollmentIds): array
+    {
+        $stats = ['retried' => 0, 'sent' => 0, 'exited' => 0, 'skipped' => 0, 'errors' => 0];
+
+        EmailSequenceEnrollment::query()
+            ->whereIn('id', $enrollmentIds)
+            ->with(['contact', 'thread', 'coldMessage'])
+            ->each(function (EmailSequenceEnrollment $enrollment) use (&$stats): void {
+                try {
+                    $result = $this->retry($enrollment);
+                    if (($result['outcome'] ?? '') === 'skipped') {
+                        $stats['skipped']++;
+
+                        return;
+                    }
+                    $stats['retried']++;
+                    match ($result['outcome'] ?? 'skipped') {
+                        'sent' => $stats['sent']++,
+                        'exited' => $stats['exited']++,
+                        default => null,
+                    };
+                } catch (Throwable $exception) {
+                    report($exception);
+                    $stats['errors']++;
+                }
+            });
+
+        return $stats;
+    }
+
+    /**
+     * @param  list<int>  $enrollmentIds
+     * @return array{marked: int, skipped: int}
+     */
+    public function bulkMarkStepComplete(array $enrollmentIds): array
+    {
+        $stats = ['marked' => 0, 'skipped' => 0];
+
+        EmailSequenceEnrollment::query()
+            ->whereIn('id', $enrollmentIds)
+            ->each(function (EmailSequenceEnrollment $enrollment) use (&$stats): void {
+                try {
+                    if (! $enrollment->canMarkCurrentStepComplete()) {
+                        $stats['skipped']++;
+
+                        return;
+                    }
+                    $this->markStepComplete($enrollment);
+                    $stats['marked']++;
+                } catch (\InvalidArgumentException) {
+                    $stats['skipped']++;
+                }
+            });
+
+        return $stats;
+    }
+
     /**
      * @return array{
      *     processed: int,
