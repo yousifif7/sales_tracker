@@ -23,6 +23,8 @@ class OutreachTemplateRenderer
 
     /**
      * Load a template without personalizing tokens (for bulk compose).
+     * Falls back to config('outreach.templates') when the DB row is missing/inactive
+     * so sequence automation does not silently exit as missing_template.
      *
      * @return array{subject: string, body: string}
      */
@@ -33,16 +35,32 @@ class OutreachTemplateRenderer
             ->where(fn ($query) => $query->where('slug', $templateKey)->orWhere('id', $templateKey))
             ->first();
 
-        if (! $template) {
+        if ($template) {
+            return [
+                'subject' => (string) $template->subject,
+                'body' => (string) $template->body,
+            ];
+        }
+
+        $config = config('outreach.templates.'.$templateKey);
+
+        if (! is_array($config)) {
             return [
                 'subject' => '',
                 'body' => '',
             ];
         }
 
+        $body = (string) ($config['body'] ?? '');
+
+        // Config bodies are plain text; DB templates are already HTML.
+        if ($body !== '' && ! str_contains($body, '<')) {
+            $body = HtmlContent::plainToHtml($body);
+        }
+
         return [
-            'subject' => $template->subject,
-            'body' => $template->body,
+            'subject' => (string) ($config['subject'] ?? ''),
+            'body' => $body,
         ];
     }
 

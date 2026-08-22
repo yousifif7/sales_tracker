@@ -15,14 +15,28 @@ class ProcessOutreachSequencesCommand extends Command
     {
         $stats = $sequences->processDue();
 
-        $this->info(sprintf(
+        $line = sprintf(
             'Sequences: processed=%d sent=%d exited=%d skipped=%d errors=%d',
             $stats['processed'],
             $stats['sent'],
             $stats['exited'],
             $stats['skipped'],
             $stats['errors'],
-        ));
+        );
+
+        if (filled($stats['idle_reason'] ?? null)) {
+            $line .= ' idle='.$stats['idle_reason'];
+        }
+
+        if (! empty($stats['exit_reasons'])) {
+            $parts = [];
+            foreach ($stats['exit_reasons'] as $reason => $count) {
+                $parts[] = $reason.':'.$count;
+            }
+            $line .= ' exits=['.implode(',', $parts).']';
+        }
+
+        $this->info($line);
 
         return self::SUCCESS;
     }

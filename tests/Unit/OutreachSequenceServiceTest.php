@@ -12,6 +12,7 @@ use App\Enums\EmailThreadStatus;
 use App\Models\Contact;
 use App\Models\EmailMessage;
 use App\Models\EmailSequenceEnrollment;
+use App\Models\EmailTemplate;
 use App\Models\EmailThread;
 use App\Models\FollowUp;
 use App\Services\OutreachSequenceService;
@@ -182,7 +183,95 @@ class OutreachSequenceServiceTest extends TestCase
         $stats = app(OutreachSequenceService::class)->processDue();
 
         $this->assertSame(0, $stats['processed']);
+        $this->assertSame('weekend', $stats['idle_reason']);
         $this->assertSame(1, EmailSequenceEnrollment::query()->active()->count());
+    }
+
+    public function test_unrelated_inbound_on_another_thread_does_not_stop_sequence(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2025-08-20 10:00:00', 'Europe/London')); // Wednesday
+
+        [$contact, $thread, $message] = $this->makeColdSend(
+            enrolledAt: Carbon::parse('2025-08-14 11:00:00', 'Europe/London'),
+        );
+
+        $otherThread = EmailThread::query()->create([
+            'contact_id' => $contact->id,
+            'subject' => 'Unrelated newsletter',
+            'status' => EmailThreadStatus::Responded,
+            'last_message_at' => now(),
+        ]);
+
+        EmailMessage::query()->create([
+            'email_thread_id' => $otherThread->id,
+            'direction' => EmailMessageDirection::Inbound,
+            'from_email' => $contact->email,
+            'to_email' => 'yousif@example.com',
+            'subject' => 'Unrelated',
+            'body_html' => '<p>hi</p>',
+            'body_text' => 'hi',
+            'message_id' => '<other@example.com>',
+            'tracking_token' => null,
+            'delivery_status' => null,
+            'received_at' => now(),
+            'open_count' => 0,
+        ]);
+
+        EmailTemplate::query()->create([
+            'name' => 'FieldLine follow-up',
+            'slug' => 'fieldline_followup',
+            'subject' => 'Re: Own vs rent — control room for {{company}}',
+            'body' => '<p>Quick bump</p>',
+            'is_active' => true,
+        ]);
+
+        EmailSequenceEnrollment::query()->create([
+            'contact_id' => $contact->id,
+            'email_thread_id' => $thread->id,
+            'cold_message_id' => $message->id,
+            'status' => EmailSequenceStatus::Active,
+            'next_step' => EmailSequenceNextStep::Followup,
+            'next_action_at' => now()->subMinute(),
+            'enrolled_at' => $message->sent_at,
+            'cold_subject' => 'Own vs rent — control room for Acme',
+            'followup_template_slug' => 'fieldline_followup',
+            'nudge_template_slug' => 'fieldline_final_nudge',
+        ]);
+
+        $stats = app(OutreachSequenceService::class)->processDue();
+
+        $this->assertSame(1, $stats['sent']);
+        $this->assertSame(0, $stats['exited']);
+        $this->assertSame(1, EmailSequenceEnrollment::query()->active()->count());
+    }
+
+    public function test_process_due_falls_back_to_config_template_when_db_row_missing(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2025-08-20 10:00:00', 'Europe/London'));
+
+        [$contact, $thread, $message] = $this->makeColdSend(
+            enrolledAt: Carbon::parse('2025-08-14 11:00:00', 'Europe/London'),
+        );
+
+        EmailSequenceEnrollment::query()->create([
+            'contact_id' => $contact->id,
+            'email_thread_id' => $thread->id,
+            'cold_message_id' => $message->id,
+            'status' => EmailSequenceStatus::Active,
+            'next_step' => EmailSequenceNextStep::Followup,
+            'next_action_at' => now()->subMinute(),
+            'enrolled_at' => $message->sent_at,
+            'cold_subject' => 'Own vs rent — control room for Acme',
+            'followup_template_slug' => 'fieldline_followup',
+            'nudge_template_slug' => 'fieldline_final_nudge',
+        ]);
+
+        $this->assertSame(0, EmailTemplate::query()->where('slug', 'fieldline_followup')->count());
+
+        $stats = app(OutreachSequenceService::class)->processDue();
+
+        $this->assertSame(1, $stats['sent']);
+        $this->assertSame(0, $stats['exited']);
     }
 
     /**

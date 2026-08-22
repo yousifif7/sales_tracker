@@ -89,7 +89,15 @@ class OutreachSequenceService
     }
 
     /**
-     * @return array{processed: int, sent: int, exited: int, skipped: int, errors: int}
+     * @return array{
+     *     processed: int,
+     *     sent: int,
+     *     exited: int,
+     *     skipped: int,
+     *     errors: int,
+     *     idle_reason: string|null,
+     *     exit_reasons: array<string, int>
+     * }
      */
     public function processDue(): array
     {
@@ -99,9 +107,13 @@ class OutreachSequenceService
             'exited' => 0,
             'skipped' => 0,
             'errors' => 0,
+            'idle_reason' => null,
+            'exit_reasons' => [],
         ];
 
         if (! BusinessDays::isBusinessDay()) {
+            $stats['idle_reason'] = 'weekend';
+
             return $stats;
         }
 
@@ -114,15 +126,24 @@ class OutreachSequenceService
             ->limit(50)
             ->get();
 
+        if ($due->isEmpty()) {
+            $active = EmailSequenceEnrollment::query()->active()->count();
+            $stats['idle_reason'] = $active === 0
+                ? 'no_active_enrollments'
+                : 'none_due_yet';
+
+            return $stats;
+        }
+
         foreach ($due as $enrollment) {
             $stats['processed']++;
 
             try {
                 $result = $this->processEnrollment($enrollment);
 
-                match ($result) {
+                match ($result['outcome']) {
                     'sent' => $stats['sent']++,
-                    'exited' => $stats['exited']++,
+                    'exited' => $this->bumpExitReason($stats, $result['exit_reason'] ?? 'unknown'),
                     default => $stats['skipped']++,
                 };
             } catch (Throwable $exception) {
@@ -138,28 +159,42 @@ class OutreachSequenceService
         return $stats;
     }
 
-    protected function processEnrollment(EmailSequenceEnrollment $enrollment): string
+    /**
+     * @param  array{processed: int, sent: int, exited: int, skipped: int, errors: int, idle_reason: string|null, exit_reasons: array<string, int>}  $stats
+     */
+    protected function bumpExitReason(array &$stats, string $reason): void
+    {
+        $stats['exited']++;
+        $stats['exit_reasons'][$reason] = ($stats['exit_reasons'][$reason] ?? 0) + 1;
+    }
+
+    /**
+     * @return array{outcome: string, exit_reason?: string}
+     */
+    protected function processEnrollment(EmailSequenceEnrollment $enrollment): array
     {
         $contact = $enrollment->contact;
 
         if (! $contact || ! filled($contact->email)) {
             $this->complete($enrollment, EmailSequenceExitReason::Cancelled);
 
-            return 'exited';
+            return ['outcome' => 'exited', 'exit_reason' => EmailSequenceExitReason::Cancelled->value];
         }
 
         if ($this->shouldStopForStatus($contact->status)) {
-            $this->complete($enrollment, $contact->status === ContactStatus::Responded
+            $reason = $contact->status === ContactStatus::Responded
                 ? EmailSequenceExitReason::Replied
-                : EmailSequenceExitReason::StatusChanged);
+                : EmailSequenceExitReason::StatusChanged;
+            $this->complete($enrollment, $reason);
 
-            return 'exited';
+            return ['outcome' => 'exited', 'exit_reason' => $reason->value];
         }
 
-        if ($this->contactHasInboundReply($contact)) {
+        // Only stop for replies on THIS outreach thread — not unrelated inbound mail.
+        if ($this->threadHasInboundReply($enrollment->thread)) {
             $this->complete($enrollment, EmailSequenceExitReason::Replied);
 
-            return 'exited';
+            return ['outcome' => 'exited', 'exit_reason' => EmailSequenceExitReason::Replied->value];
         }
 
         return match ($enrollment->next_step) {
@@ -169,7 +204,10 @@ class OutreachSequenceService
         };
     }
 
-    protected function sendStep(EmailSequenceEnrollment $enrollment, EmailSequenceNextStep $step): string
+    /**
+     * @return array{outcome: string, exit_reason?: string}
+     */
+    protected function sendStep(EmailSequenceEnrollment $enrollment, EmailSequenceNextStep $step): array
     {
         $slug = $step === EmailSequenceNextStep::Followup
             ? $enrollment->followup_template_slug
@@ -178,9 +216,14 @@ class OutreachSequenceService
         $raw = $this->templates->rawTemplate($slug);
 
         if ($raw['subject'] === '' && $raw['body'] === '') {
+            Log::warning('Sequence missing template', [
+                'enrollment_id' => $enrollment->id,
+                'slug' => $slug,
+                'step' => $step->value,
+            ]);
             $this->complete($enrollment, EmailSequenceExitReason::MissingTemplate);
 
-            return 'exited';
+            return ['outcome' => 'exited', 'exit_reason' => EmailSequenceExitReason::MissingTemplate->value];
         }
 
         $contact = $enrollment->contact;
@@ -226,10 +269,13 @@ class OutreachSequenceService
             ]);
         }
 
-        return 'sent';
+        return ['outcome' => 'sent'];
     }
 
-    protected function exitSequence(EmailSequenceEnrollment $enrollment): string
+    /**
+     * @return array{outcome: string, exit_reason?: string}
+     */
+    protected function exitSequence(EmailSequenceEnrollment $enrollment): array
     {
         $contact = $enrollment->contact;
 
@@ -237,7 +283,7 @@ class OutreachSequenceService
             $this->complete($enrollment, EmailSequenceExitReason::HotOpens);
             $this->createHotOpenFollowUp($contact);
 
-            return 'exited';
+            return ['outcome' => 'exited', 'exit_reason' => EmailSequenceExitReason::HotOpens->value];
         }
 
         $this->complete($enrollment, EmailSequenceExitReason::QuietLost);
@@ -246,7 +292,7 @@ class OutreachSequenceService
             $contact->update(['status' => ContactStatus::Lost]);
         }
 
-        return 'exited';
+        return ['outcome' => 'exited', 'exit_reason' => EmailSequenceExitReason::QuietLost->value];
     }
 
     public function isHotOpen(EmailSequenceEnrollment $enrollment): bool
@@ -302,11 +348,15 @@ class OutreachSequenceService
         ], true);
     }
 
-    protected function contactHasInboundReply(Contact $contact): bool
+    protected function threadHasInboundReply(?EmailThread $thread): bool
     {
+        if (! $thread) {
+            return false;
+        }
+
         return EmailMessage::query()
+            ->where('email_thread_id', $thread->id)
             ->where('direction', EmailMessageDirection::Inbound)
-            ->whereHas('thread', fn ($query) => $query->where('contact_id', $contact->id))
             ->exists();
     }
 

@@ -5,7 +5,7 @@
     <style>
         html, body { overflow-x: hidden; }
         body { background-color: #020617; color: #f1f5f9; }
-        .panel { border-radius: 1rem; border: 1px solid #1e293b; background: rgba(15, 23, 42, 0.7); padding: 1rem; box-shadow: 0 25px 50px -12px rgba(2, 6, 23, 0.3); }
+        .panel { border-radius: 1rem; border: 1px solid #1e293b; background: rgba(15, 23, 42, 0.7); padding: 1rem; box-shadow: 0 25px 50px -12px rgba(2, 6, 23, 0.3); min-width: 0; max-width: 100%; }
         @media (min-width: 640px) {
             .panel { border-radius: 1.5rem; padding: 1.5rem; }
         }
@@ -24,9 +24,9 @@
         .input { margin-top: 0.5rem; width: 100%; border-radius: 1rem; border: 1px solid #334155; background: #020617; padding: 0.75rem 1rem; color: #f1f5f9; color-scheme: dark; }
         .input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2); }
         .label { font-size: 0.875rem; font-weight: 500; color: #e2e8f0; }
-        .table-wrap { position: relative; overflow: hidden; border-radius: 1rem; border: 1px solid #1e293b; background: rgba(15, 23, 42, 0.7); }
+        .table-wrap { position: relative; overflow: hidden; border-radius: 1rem; border: 1px solid #1e293b; background: rgba(15, 23, 42, 0.7); min-width: 0; max-width: 100%; }
         @media (min-width: 640px) { .table-wrap { border-radius: 1.5rem; } }
-        .table-scroll { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+        .table-scroll { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #334155 transparent; max-width: 100%; }
         .table-scroll::-webkit-scrollbar { height: 8px; }
         .table-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
         .table { width: 100%; min-width: 44rem; border-collapse: collapse; text-align: left; font-size: 0.875rem; color: #cbd5e1; }

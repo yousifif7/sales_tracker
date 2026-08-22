@@ -1,302 +1,387 @@
 <x-layouts.app title="Reports | Sales Tracker" heading="Reports" eyebrow="Live outreach analytics">
-    <section class="panel">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-                <h3 class="text-lg font-semibold text-white">Email outreach overview</h3>
-                <p class="mt-1 text-sm text-slate-400">Live totals from sent outbound mail, opens, and inbound replies.</p>
-            </div>
-            <p class="text-xs text-slate-500">Updated when you open this page</p>
-        </div>
-
-        <div class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-                <p class="text-sm text-slate-400">Outbound sent</p>
-                <p class="mt-2 text-3xl font-semibold text-white">{{ number_format($outreach['outbound_sent']) }}</p>
-                <p class="mt-2 text-xs text-slate-500">{{ number_format($outreach['sends_this_week']) }} this week</p>
+    <div class="min-w-0 max-w-full space-y-6">
+        <section class="panel min-w-0">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div class="min-w-0">
+                    <h3 class="text-lg font-semibold text-white">Email outreach overview</h3>
+                    <p class="mt-1 text-sm text-slate-400">Live totals from sent outbound mail, opens, and inbound replies.</p>
+                </div>
+                <p class="shrink-0 text-xs text-slate-500">Updated when you open this page</p>
             </div>
 
-            <div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-                <p class="text-sm text-slate-400">Open rate</p>
-                <p class="mt-2 text-3xl font-semibold text-emerald-300">{{ $outreach['open_rate'] }}%</p>
-                <p class="mt-2 text-xs text-slate-500">{{ number_format($outreach['opened_messages']) }} opened messages</p>
+            <div class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+                    <p class="text-sm text-slate-400">Outbound sent</p>
+                    <p class="mt-2 text-2xl font-semibold text-white sm:text-3xl">{{ number_format($outreach['outbound_sent']) }}</p>
+                    <p class="mt-2 text-xs text-slate-500">{{ number_format($outreach['sends_this_week']) }} this week</p>
+                </div>
+
+                <div class="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+                    <p class="text-sm text-slate-400">Open rate</p>
+                    <p class="mt-2 text-2xl font-semibold text-emerald-300 sm:text-3xl">{{ $outreach['open_rate'] }}%</p>
+                    <p class="mt-2 text-xs text-slate-500">{{ number_format($outreach['opened_messages']) }} opened messages</p>
+                </div>
+
+                <div class="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+                    <p class="text-sm text-slate-400">Contacts emailed</p>
+                    <p class="mt-2 text-2xl font-semibold text-white sm:text-3xl">{{ number_format($outreach['contacts_emailed']) }}</p>
+                    <p class="mt-2 text-xs text-slate-500">{{ number_format($outreach['contacts_opened']) }} opened at least once</p>
+                </div>
+
+                <div class="min-w-0 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+                    <p class="text-sm text-slate-400">Reply rate</p>
+                    <p class="mt-2 text-2xl font-semibold text-sky-300 sm:text-3xl">{{ $outreach['reply_rate'] }}%</p>
+                    <p class="mt-2 break-words text-xs text-slate-500">{{ number_format($outreach['contacts_replied']) }} replied · {{ number_format($outreach['inbound_messages']) }} inbound</p>
+                </div>
             </div>
+        </section>
 
-            <div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-                <p class="text-sm text-slate-400">Contacts emailed</p>
-                <p class="mt-2 text-3xl font-semibold text-white">{{ number_format($outreach['contacts_emailed']) }}</p>
-                <p class="mt-2 text-xs text-slate-500">{{ number_format($outreach['contacts_opened']) }} opened at least once</p>
-            </div>
+        <div class="grid min-w-0 gap-6 xl:grid-cols-2">
+            <section class="panel min-w-0">
+                <h3 class="text-lg font-semibold text-white">Outreach funnel</h3>
+                <p class="mt-1 mb-5 text-sm text-slate-400">How the list moves from contacts to replies (unique people).</p>
 
-            <div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-                <p class="text-sm text-slate-400">Reply rate</p>
-                <p class="mt-2 text-3xl font-semibold text-sky-300">{{ $outreach['reply_rate'] }}%</p>
-                <p class="mt-2 text-xs text-slate-500">{{ number_format($outreach['contacts_replied']) }} replied · {{ number_format($outreach['inbound_messages']) }} inbound</p>
-            </div>
-        </div>
-    </section>
+                @php
+                    $funnelMax = max(1, ...array_column($funnel, 'value'));
+                @endphp
 
-    <div class="mt-6 grid gap-6 xl:grid-cols-2">
-        <section class="panel">
-            <h3 class="text-lg font-semibold text-white">Outreach funnel</h3>
-            <p class="mt-1 mb-5 text-sm text-slate-400">How the list moves from contacts to replies (unique people).</p>
-
-            @php
-                $funnelMax = max(1, ...array_column($funnel, 'value'));
-            @endphp
-
-            <div class="space-y-4">
-                @foreach ($funnel as $step)
-                    <div>
-                        <div class="mb-2 flex items-center justify-between text-sm">
-                            <span class="font-medium text-slate-200">{{ $step['label'] }}</span>
-                            <span class="tabular-nums text-slate-400">{{ number_format($step['value']) }}</span>
+                <div class="space-y-4">
+                    @foreach ($funnel as $step)
+                        <div class="min-w-0">
+                            <div class="mb-2 flex items-center justify-between gap-3 text-sm">
+                                <span class="min-w-0 break-words font-medium text-slate-200">{{ $step['label'] }}</span>
+                                <span class="shrink-0 tabular-nums text-slate-400">{{ number_format($step['value']) }}</span>
+                            </div>
+                            <div class="h-3 rounded-full bg-slate-800">
+                                <div
+                                    class="h-3 rounded-full bg-gradient-to-r from-sky-400 to-cyan-300"
+                                    style="width: {{ max($step['value'] > 0 ? 8 : 0, min(100, ($step['value'] / $funnelMax) * 100)) }}%"
+                                ></div>
+                            </div>
                         </div>
-                        <div class="h-3 rounded-full bg-slate-800">
-                            <div
-                                class="h-3 rounded-full bg-gradient-to-r from-sky-400 to-cyan-300"
-                                style="width: {{ max($step['value'] > 0 ? 8 : 0, min(100, ($step['value'] / $funnelMax) * 100)) }}%"
-                            ></div>
-                        </div>
+                    @endforeach
+                </div>
+            </section>
+
+            <section class="panel min-w-0">
+                <h3 class="text-lg font-semibold text-white">Sends by day</h3>
+                <p class="mt-1 mb-5 text-sm text-slate-400">Outbound volume for the last 14 days.</p>
+
+                @php
+                    $dayMax = max(1, ...array_column($sendsByDay, 'value'));
+                @endphp
+
+                <div class="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
+                    <div class="flex h-40 min-w-max gap-1 sm:min-w-0 sm:w-full sm:gap-1.5">
+                        @foreach ($sendsByDay as $day)
+                            @php
+                                $barHeight = max($day['value'] > 0 ? 8 : 2, (int) round(($day['value'] / $dayMax) * 100));
+                            @endphp
+                            <div class="flex h-full min-w-[2rem] flex-1 flex-col sm:min-w-0">
+                                <div class="flex min-h-0 flex-1 flex-col justify-end">
+                                    <span @class([
+                                        'mb-1 text-center text-[10px] tabular-nums',
+                                        'text-slate-500' => $day['value'] === 0,
+                                        'font-medium text-slate-300' => $day['value'] > 0,
+                                    ])>{{ $day['value'] }}</span>
+                                    <div
+                                        class="w-full min-h-[2px] rounded-t bg-sky-400/80"
+                                        style="height: {{ $barHeight }}%"
+                                        title="{{ $day['label'] }}: {{ $day['value'] }}"
+                                    ></div>
+                                </div>
+                                <span class="mt-2 shrink-0 text-center text-[10px] leading-tight text-slate-500" title="{{ $day['label'] }}">
+                                    <span class="sm:hidden">{{ \Illuminate\Support\Str::after($day['label'], ' ') ?: $day['label'] }}</span>
+                                    <span class="hidden sm:inline">{{ $day['label'] }}</span>
+                                </span>
+                            </div>
+                        @endforeach
                     </div>
-                @endforeach
-            </div>
-        </section>
-
-        <section class="panel">
-            <h3 class="text-lg font-semibold text-white">Sends by day</h3>
-            <p class="mt-1 mb-5 text-sm text-slate-400">Outbound volume for the last 14 days.</p>
-
-            @php
-                $dayMax = max(1, ...array_column($sendsByDay, 'value'));
-            @endphp
-
-            <div class="flex h-40 items-end gap-1.5">
-                @foreach ($sendsByDay as $day)
-                    <div class="group flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
-                        <span class="text-[10px] tabular-nums text-slate-500 opacity-0 transition group-hover:opacity-100">{{ $day['value'] }}</span>
-                        <div
-                            class="w-full rounded-t bg-sky-400/80"
-                            style="height: {{ max($day['value'] > 0 ? 8 : 2, (int) round(($day['value'] / $dayMax) * 100)) }}%"
-                            title="{{ $day['label'] }}: {{ $day['value'] }}"
-                        ></div>
-                        <span class="truncate text-[10px] text-slate-500">{{ $day['label'] }}</span>
-                    </div>
-                @endforeach
-            </div>
-        </section>
-    </div>
-
-    <div class="mt-6 grid gap-6 md:grid-cols-3">
-        <section class="panel">
-            <h3 class="text-lg font-semibold text-white">Touches per contact</h3>
-            <p class="mt-1 mb-4 text-sm text-slate-400">How many outbound emails each contacted person has received.</p>
-            <div class="space-y-3">
-                <div class="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
-                    <span class="text-sm text-slate-300">1 email</span>
-                    <span class="text-lg font-semibold tabular-nums text-white">{{ number_format($touches['one']) }}</span>
                 </div>
-                <div class="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
-                    <span class="text-sm text-slate-300">2 emails</span>
-                    <span class="text-lg font-semibold tabular-nums text-white">{{ number_format($touches['two']) }}</span>
-                </div>
-                <div class="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
-                    <span class="text-sm text-slate-300">3+ emails</span>
-                    <span class="text-lg font-semibold tabular-nums text-sky-300">{{ number_format($touches['three_plus']) }}</span>
-                </div>
-            </div>
-        </section>
-
-        <section class="panel">
-            <h3 class="text-lg font-semibold text-white">Pipeline status</h3>
-            <p class="mt-1 mb-4 text-sm text-slate-400">Current contact statuses across the CRM.</p>
-            <div class="space-y-3">
-                @forelse ($statusMix as $status)
-                    <div class="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
-                        <span class="text-sm text-slate-300">{{ $status['label'] }}</span>
-                        <span class="text-lg font-semibold tabular-nums text-white">{{ number_format($status['count']) }}</span>
-                    </div>
-                @empty
-                    <p class="text-sm text-slate-500">No contacts yet.</p>
-                @endforelse
-            </div>
-        </section>
-
-        <section class="panel">
-            <h3 class="text-lg font-semibold text-white">List quality</h3>
-            <p class="mt-1 mb-4 text-sm text-slate-400">Gaps that limit multi-channel follow-up.</p>
-            <div class="space-y-3">
-                <div class="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
-                    <span class="text-sm text-slate-300">With phone</span>
-                    <span class="text-lg font-semibold tabular-nums text-white">{{ number_format($dataQuality['with_phone']) }}</span>
-                </div>
-                <div class="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
-                    <span class="text-sm text-slate-300">With LinkedIn</span>
-                    <span class="text-lg font-semibold tabular-nums text-white">{{ number_format($dataQuality['with_linkedin']) }}</span>
-                </div>
-                <div class="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
-                    <span class="text-sm text-slate-300">Email on file, never emailed</span>
-                    <span class="text-lg font-semibold tabular-nums text-amber-300">{{ number_format($dataQuality['never_emailed']) }}</span>
-                </div>
-            </div>
-        </section>
-    </div>
-
-    <section class="panel mt-6">
-        <div class="mb-4">
-            <h3 class="text-lg font-semibold text-white">Hottest opens</h3>
-            <p class="mt-1 text-sm text-slate-400">Contacts with the most tracked opens — prioritize these for LinkedIn / personal follow-up.</p>
+            </section>
         </div>
 
-        <x-data-table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Contact</th>
-                    <th>Company</th>
-                    <th>Status</th>
-                    <th class="text-right">Emails opened</th>
-                    <th class="text-right">Total opens</th>
-                    <th class="text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800">
+        <div class="grid min-w-0 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <section class="panel min-w-0">
+                <h3 class="text-lg font-semibold text-white">Touches per contact</h3>
+                <p class="mt-1 mb-4 text-sm text-slate-400">How many outbound emails each contacted person has received.</p>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+                        <span class="min-w-0 text-sm text-slate-300">1 email</span>
+                        <span class="shrink-0 text-lg font-semibold tabular-nums text-white">{{ number_format($touches['one']) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+                        <span class="min-w-0 text-sm text-slate-300">2 emails</span>
+                        <span class="shrink-0 text-lg font-semibold tabular-nums text-white">{{ number_format($touches['two']) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+                        <span class="min-w-0 text-sm text-slate-300">3+ emails</span>
+                        <span class="shrink-0 text-lg font-semibold tabular-nums text-sky-300">{{ number_format($touches['three_plus']) }}</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel min-w-0">
+                <h3 class="text-lg font-semibold text-white">Pipeline status</h3>
+                <p class="mt-1 mb-4 text-sm text-slate-400">Current contact statuses across the CRM.</p>
+                <div class="space-y-3">
+                    @forelse ($statusMix as $status)
+                        <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+                            <span class="min-w-0 break-words text-sm text-slate-300">{{ $status['label'] }}</span>
+                            <span class="shrink-0 text-lg font-semibold tabular-nums text-white">{{ number_format($status['count']) }}</span>
+                        </div>
+                    @empty
+                        <p class="text-sm text-slate-500">No contacts yet.</p>
+                    @endforelse
+                </div>
+            </section>
+
+            <section class="panel min-w-0 md:col-span-2 xl:col-span-1">
+                <h3 class="text-lg font-semibold text-white">List quality</h3>
+                <p class="mt-1 mb-4 text-sm text-slate-400">Gaps that limit multi-channel follow-up.</p>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+                        <span class="min-w-0 text-sm text-slate-300">With phone</span>
+                        <span class="shrink-0 text-lg font-semibold tabular-nums text-white">{{ number_format($dataQuality['with_phone']) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+                        <span class="min-w-0 text-sm text-slate-300">With LinkedIn</span>
+                        <span class="shrink-0 text-lg font-semibold tabular-nums text-white">{{ number_format($dataQuality['with_linkedin']) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+                        <span class="min-w-0 break-words text-sm text-slate-300">Email on file, never emailed</span>
+                        <span class="shrink-0 text-lg font-semibold tabular-nums text-amber-300">{{ number_format($dataQuality['never_emailed']) }}</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <section class="panel min-w-0">
+            <div class="mb-4 min-w-0">
+                <h3 class="text-lg font-semibold text-white">Hottest opens</h3>
+                <p class="mt-1 text-sm text-slate-400">Contacts with the most tracked opens — prioritize these for LinkedIn / personal follow-up.</p>
+            </div>
+
+            <div class="space-y-3 md:hidden">
                 @forelse ($hotOpens as $index => $row)
-                    <tr>
-                        <td class="text-slate-500">{{ $index + 1 }}</td>
-                        <td class="font-medium text-white">{{ $row->name }}</td>
-                        <td>{{ $row->company ?: '—' }}</td>
-                        <td class="capitalize text-slate-300">{{ $row->status ?: '—' }}</td>
-                        <td class="text-right tabular-nums">{{ number_format((int) $row->emails_opened) }}</td>
-                        <td class="text-right tabular-nums font-semibold text-emerald-300">{{ number_format((int) $row->total_opens) }}</td>
-                        <td class="text-right">
-                            <a class="link-action" href="{{ route('contacts.show', $row->contact_id) }}">View</a>
-                        </td>
-                    </tr>
+                    <article class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-xs text-slate-500">#{{ $index + 1 }}</p>
+                                <p class="mt-1 break-words font-medium text-white">{{ $row->name }}</p>
+                                <p class="mt-1 break-words text-sm text-slate-400">{{ $row->company ?: '—' }}</p>
+                            </div>
+                            <span class="shrink-0 rounded-full bg-slate-800 px-2.5 py-1 text-xs capitalize text-slate-300">{{ $row->status ?: '—' }}</span>
+                        </div>
+                        <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <dt class="text-xs text-slate-500">Emails opened</dt>
+                                <dd class="mt-1 tabular-nums text-white">{{ number_format((int) $row->emails_opened) }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-slate-500">Total opens</dt>
+                                <dd class="mt-1 tabular-nums font-semibold text-emerald-300">{{ number_format((int) $row->total_opens) }}</dd>
+                            </div>
+                        </dl>
+                        <div class="mt-4">
+                            <a class="link-action text-sm" href="{{ route('contacts.show', $row->contact_id) }}">View contact</a>
+                        </div>
+                    </article>
                 @empty
-                    <tr>
-                        <td colspan="7" class="text-center text-slate-500">No tracked opens yet.</td>
-                    </tr>
+                    <p class="text-center text-sm text-slate-500">No tracked opens yet.</p>
                 @endforelse
-            </tbody>
-        </x-data-table>
-    </section>
+            </div>
 
-    <section class="panel mt-6">
-        <div class="mb-4">
-            <h3 class="text-lg font-semibold text-white">Multi-touch contacts</h3>
-            <p class="mt-1 text-sm text-slate-400">People who received 2+ outbound emails — useful for sequence discipline and break-up timing.</p>
-        </div>
+            <div class="hidden min-w-0 md:block">
+                <x-data-table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Contact</th>
+                            <th>Company</th>
+                            <th>Status</th>
+                            <th class="text-right">Emails opened</th>
+                            <th class="text-right">Total opens</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        @forelse ($hotOpens as $index => $row)
+                            <tr>
+                                <td class="text-slate-500">{{ $index + 1 }}</td>
+                                <td class="max-w-[12rem] break-words font-medium text-white">{{ $row->name }}</td>
+                                <td class="max-w-[10rem] break-words">{{ $row->company ?: '—' }}</td>
+                                <td class="capitalize text-slate-300">{{ $row->status ?: '—' }}</td>
+                                <td class="text-right tabular-nums">{{ number_format((int) $row->emails_opened) }}</td>
+                                <td class="text-right tabular-nums font-semibold text-emerald-300">{{ number_format((int) $row->total_opens) }}</td>
+                                <td class="text-right">
+                                    <a class="link-action" href="{{ route('contacts.show', $row->contact_id) }}">View</a>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center text-slate-500">No tracked opens yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </x-data-table>
+            </div>
+        </section>
 
-        <x-data-table>
-            <thead>
-                <tr>
-                    <th>Contact</th>
-                    <th>Company</th>
-                    <th>Status</th>
-                    <th class="text-right">Emails sent</th>
-                    <th>Replied</th>
-                    <th class="text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800">
+        <section class="panel min-w-0">
+            <div class="mb-4 min-w-0">
+                <h3 class="text-lg font-semibold text-white">Multi-touch contacts</h3>
+                <p class="mt-1 text-sm text-slate-400">People who received 2+ outbound emails — useful for sequence discipline and break-up timing.</p>
+            </div>
+
+            <div class="space-y-3 md:hidden">
                 @forelse ($multiTouch as $row)
-                    <tr>
-                        <td class="font-medium text-white">{{ $row->name }}</td>
-                        <td>{{ $row->company ?: '—' }}</td>
-                        <td class="capitalize text-slate-300">{{ $row->status ?: '—' }}</td>
-                        <td class="text-right tabular-nums">{{ number_format((int) $row->emails_sent) }}</td>
-                        <td>
-                            @if ($row->replied)
-                                <span class="text-emerald-300">Yes</span>
-                            @else
-                                <span class="text-slate-500">No</span>
-                            @endif
-                        </td>
-                        <td class="text-right">
-                            <a class="link-action" href="{{ route('contacts.show', $row->contact_id) }}">View</a>
-                        </td>
-                    </tr>
+                    <article class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="break-words font-medium text-white">{{ $row->name }}</p>
+                                <p class="mt-1 break-words text-sm text-slate-400">{{ $row->company ?: '—' }}</p>
+                            </div>
+                            <span class="shrink-0 rounded-full bg-slate-800 px-2.5 py-1 text-xs capitalize text-slate-300">{{ $row->status ?: '—' }}</span>
+                        </div>
+                        <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <dt class="text-xs text-slate-500">Emails sent</dt>
+                                <dd class="mt-1 tabular-nums text-white">{{ number_format((int) $row->emails_sent) }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-slate-500">Replied</dt>
+                                <dd class="mt-1">
+                                    @if ($row->replied)
+                                        <span class="text-emerald-300">Yes</span>
+                                    @else
+                                        <span class="text-slate-500">No</span>
+                                    @endif
+                                </dd>
+                            </div>
+                        </dl>
+                        <div class="mt-4">
+                            <a class="link-action text-sm" href="{{ route('contacts.show', $row->contact_id) }}">View contact</a>
+                        </div>
+                    </article>
                 @empty
-                    <tr>
-                        <td colspan="6" class="text-center text-slate-500">No multi-touch contacts yet.</td>
-                    </tr>
+                    <p class="text-center text-sm text-slate-500">No multi-touch contacts yet.</p>
                 @endforelse
-            </tbody>
-        </x-data-table>
-    </section>
+            </div>
 
-    <section class="panel mt-6">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <h3 class="text-lg font-semibold text-white">Exports</h3>
-                <p class="text-sm text-slate-400">Download CSV snapshots of contacts and interactions.</p>
+            <div class="hidden min-w-0 md:block">
+                <x-data-table>
+                    <thead>
+                        <tr>
+                            <th>Contact</th>
+                            <th>Company</th>
+                            <th>Status</th>
+                            <th class="text-right">Emails sent</th>
+                            <th>Replied</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        @forelse ($multiTouch as $row)
+                            <tr>
+                                <td class="max-w-[12rem] break-words font-medium text-white">{{ $row->name }}</td>
+                                <td class="max-w-[10rem] break-words">{{ $row->company ?: '—' }}</td>
+                                <td class="capitalize text-slate-300">{{ $row->status ?: '—' }}</td>
+                                <td class="text-right tabular-nums">{{ number_format((int) $row->emails_sent) }}</td>
+                                <td>
+                                    @if ($row->replied)
+                                        <span class="text-emerald-300">Yes</span>
+                                    @else
+                                        <span class="text-slate-500">No</span>
+                                    @endif
+                                </td>
+                                <td class="text-right">
+                                    <a class="link-action" href="{{ route('contacts.show', $row->contact_id) }}">View</a>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-center text-slate-500">No multi-touch contacts yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </x-data-table>
             </div>
-            <div class="flex flex-wrap gap-3">
-                <a class="btn-secondary" href="{{ route('reports.contacts.export') }}">Export contacts CSV</a>
-                <a class="btn-secondary" href="{{ route('reports.interactions.export') }}">Export interactions CSV</a>
+        </section>
+
+        <section class="panel min-w-0">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                    <h3 class="text-lg font-semibold text-white">Exports</h3>
+                    <p class="text-sm text-slate-400">Download CSV snapshots of contacts and interactions.</p>
+                </div>
+                <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
+                    <a class="btn-secondary w-full justify-center sm:w-auto" href="{{ route('reports.contacts.export') }}">Export contacts CSV</a>
+                    <a class="btn-secondary w-full justify-center sm:w-auto" href="{{ route('reports.interactions.export') }}">Export interactions CSV</a>
+                </div>
             </div>
+        </section>
+
+        <div class="grid min-w-0 gap-6 xl:grid-cols-2">
+            <section class="panel min-w-0">
+                <h3 class="text-lg font-semibold text-white">Reply rate by campaign</h3>
+                <p class="mt-1 mb-4 text-sm text-slate-400">Sent email threads that received at least one inbound reply.</p>
+
+                <x-data-table>
+                    <thead>
+                        <tr>
+                            <th>Campaign</th>
+                            <th>Replies</th>
+                            <th>Sent threads</th>
+                            <th>Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        @forelse ($responseByCampaign as $row)
+                            <tr>
+                                <td class="max-w-[10rem] break-words font-medium text-white">{{ $row['label'] }}</td>
+                                <td>{{ $row['replies'] }}</td>
+                                <td>{{ $row['threads'] }}</td>
+                                <td class="font-semibold text-sky-300">{{ $row['rate'] }}%</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-center text-slate-500">No campaign data yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </x-data-table>
+            </section>
+
+            <section class="panel min-w-0">
+                <h3 class="text-lg font-semibold text-white">Reply rate by source</h3>
+                <p class="mt-1 mb-4 text-sm text-slate-400">Compare which lead sources get actual email replies.</p>
+
+                <x-data-table>
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>Replies</th>
+                            <th>Sent threads</th>
+                            <th>Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        @forelse ($responseBySource as $row)
+                            <tr>
+                                <td class="max-w-[10rem] break-words font-medium text-white">{{ $row['label'] }}</td>
+                                <td>{{ $row['replies'] }}</td>
+                                <td>{{ $row['threads'] }}</td>
+                                <td class="font-semibold text-sky-300">{{ $row['rate'] }}%</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-center text-slate-500">No source data yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </x-data-table>
+            </section>
         </div>
-    </section>
-
-    <div class="mt-6 grid gap-6 xl:grid-cols-2">
-        <section class="panel">
-            <h3 class="text-lg font-semibold text-white">Reply rate by campaign</h3>
-            <p class="mt-1 mb-4 text-sm text-slate-400">Sent email threads that received at least one inbound reply.</p>
-
-            <x-data-table>
-                <thead>
-                    <tr>
-                        <th>Campaign</th>
-                        <th>Replies</th>
-                        <th>Sent threads</th>
-                        <th>Rate</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-800">
-                    @forelse ($responseByCampaign as $row)
-                        <tr>
-                            <td class="font-medium text-white">{{ $row['label'] }}</td>
-                            <td>{{ $row['replies'] }}</td>
-                            <td>{{ $row['threads'] }}</td>
-                            <td class="text-sky-300 font-semibold">{{ $row['rate'] }}%</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="text-center text-slate-500">No campaign data yet.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </x-data-table>
-        </section>
-
-        <section class="panel">
-            <h3 class="text-lg font-semibold text-white">Reply rate by source</h3>
-            <p class="mt-1 mb-4 text-sm text-slate-400">Compare which lead sources get actual email replies.</p>
-
-            <x-data-table>
-                <thead>
-                    <tr>
-                        <th>Source</th>
-                        <th>Replies</th>
-                        <th>Sent threads</th>
-                        <th>Rate</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-800">
-                    @forelse ($responseBySource as $row)
-                        <tr>
-                            <td class="font-medium text-white">{{ $row['label'] }}</td>
-                            <td>{{ $row['replies'] }}</td>
-                            <td>{{ $row['threads'] }}</td>
-                            <td class="text-sky-300 font-semibold">{{ $row['rate'] }}%</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="text-center text-slate-500">No source data yet.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </x-data-table>
-        </section>
     </div>
 </x-layouts.app>

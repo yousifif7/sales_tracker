@@ -3,8 +3,8 @@
     'wide' => false,
 ])
 
-<div {{ $attributes->merge(['class' => 'table-wrap']) }}>
-    <div class="table-scroll">
+<div {{ $attributes->merge(['class' => 'table-wrap min-w-0 max-w-full']) }}>
+    <div class="table-scroll max-w-full">
         <table @class([
             'table',
             'table-compact' => $compact,

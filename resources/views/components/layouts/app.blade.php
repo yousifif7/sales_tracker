@@ -202,7 +202,7 @@
                     </div>
                 </header>
 
-                <div class="px-3 py-4 sm:px-6 sm:py-6 lg:px-10">
+                <div class="min-w-0 max-w-full px-3 py-4 sm:px-6 sm:py-6 lg:px-10">
                     @if (session('status'))
                         <div class="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
                             {{ session('status') }}
