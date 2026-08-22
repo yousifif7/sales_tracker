@@ -2,11 +2,13 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @php
-            $contactEmail = config('mail.from.address') ?: 'hello@example.com';
-            $pageTitle = 'Sales Tracker | Private AI Outreach CRM for Lead Discovery and Follow-ups';
-            $pageDescription = 'Sales Tracker is a modern private outreach CRM for businesses that need AI lead discovery, campaign management, email threading, follow-up tracking, and reporting in one delivered system.';
+            $contactEmail = 'contact@yousiffarra.com';
+            $pageTitle = 'Sales Tracker | Outreach CRM with AI Lead Search & Email Sequences';
+            $pageDescription = 'A Laravel outreach CRM built for B2B sales: UK-focused AI lead discovery, tracked cold email, automated follow-up sequences on UK business days, and live pipeline analytics.';
             $canonicalUrl = url('/');
             $logoUrl = asset('brand/sales-tracker-logo.svg');
+            $portfolioUrl = 'https://yousiffarra.com';
+            $fieldlineUrl = config('outreach.signature.website', 'https://fieldline-wf.com');
             $structuredData = [
                 '@context' => 'https://schema.org',
                 '@type' => 'SoftwareApplication',
@@ -15,58 +17,23 @@
                 'operatingSystem' => 'Web',
                 'description' => $pageDescription,
                 'url' => $canonicalUrl,
-                'audience' => [
-                    '@type' => 'Audience',
-                    'audienceType' => 'Businesses selling products or services to target accounts',
-                ],
-                'offers' => [
-                    '@type' => 'Offer',
-                    'availability' => 'https://schema.org/InStock',
-                    'url' => 'mailto:' . $contactEmail,
-                ],
+                'author' => ['@type' => 'Person', 'name' => config('outreach.signature.name', 'Yousif Elfarra'), 'url' => $portfolioUrl],
+                'offers' => ['@type' => 'Offer', 'availability' => 'https://schema.org/InStock', 'url' => 'mailto:'.$contactEmail],
             ];
-            $contactHref = 'mailto:' . $contactEmail . '?subject=' . rawurlencode('Sales Tracker demo request');
-            $painPoints = [
-                [
-                    'title' => 'Manual lead hunting wastes selling time',
-                    'copy' => 'Stop digging through directories, search engines, and spreadsheets just to build a prospect list.',
-                ],
-                [
-                    'title' => 'Outreach gets scattered across tools',
-                    'copy' => 'Keep contacts, campaigns, templates, replies, and reminders connected in one workflow.',
-                ],
-                [
-                    'title' => 'Missed follow-ups cost revenue',
-                    'copy' => 'Track opens, responses, and next actions so the pipeline keeps moving instead of going cold.',
-                ],
-            ];
+            $contactHref = 'mailto:'.$contactEmail.'?subject='.rawurlencode('Sales Tracker — demo or delivery enquiry');
             $featureCards = [
-                [
-                    'eyebrow' => 'AI lead search',
-                    'title' => 'Find target accounts faster',
-                    'copy' => 'Use prompt-based lead discovery to surface businesses and contacts that match your ideal outreach target.',
-                ],
-                [
-                    'eyebrow' => 'CRM workflow',
-                    'title' => 'Run campaigns without chaos',
-                    'copy' => 'Organize contacts, assign campaigns, manage templates, and keep every touchpoint attached to the right record.',
-                ],
-                [
-                    'eyebrow' => 'Inbox and tracking',
-                    'title' => 'See replies, opens, and threads',
-                    'copy' => 'Capture outbound and inbound email activity with threading, reply tracking, and follow-up visibility.',
-                ],
-                [
-                    'eyebrow' => 'Reports and permissions',
-                    'title' => 'Give teams clarity and control',
-                    'copy' => 'Review pipeline activity, monitor performance, and control access with role-based permissions.',
-                ],
+                ['title' => 'AI lead search', 'copy' => 'UK-focused prompts, regional presets, deduped import with phone and LinkedIn.'],
+                ['title' => 'Email sequences', 'copy' => 'Follow-up day 4, nudge day 8, exit day 15 — with manual override and bulk ops.'],
+                ['title' => 'Live reports', 'copy' => 'Open rate, funnel, hottest opens, multi-touch — from real sent mail.'],
+                ['title' => 'CRM & inbox', 'copy' => 'Contacts, templates, threaded replies, roles, and follow-up tasks.'],
             ];
-            $deliveryPoints = [
-                'Delivered as a private business system, not a shared SaaS account.',
-                'Can be customized to match your outreach process, team structure, and messaging.',
-                'Keeps your data, operations, and deployment under your own control.',
+            $workflowSteps = [
+                ['title' => 'Discover', 'copy' => 'AI search → review → import clean UK leads.'],
+                ['title' => 'Outreach', 'copy' => 'Tracked cold email + sequence enrollment.'],
+                ['title' => 'Automate', 'copy' => 'UK weekday cron, or pause / retry anytime.'],
+                ['title' => 'Convert', 'copy' => 'Hot opens → LinkedIn / video → qualified.'],
             ];
+            $techStack = ['Laravel 11', 'Tailwind', 'MySQL', 'Cron & queues', 'OpenRouter', 'Open tracking'];
         @endphp
 
         <meta charset="utf-8">
@@ -74,295 +41,610 @@
         <title>{{ $pageTitle }}</title>
         <meta name="description" content="{{ $pageDescription }}">
         <meta name="robots" content="index,follow">
-        <meta name="keywords" content="outreach CRM, AI lead discovery, sales prospecting software, lead generation CRM, email follow-up system, private CRM deployment">
         <link rel="canonical" href="{{ $canonicalUrl }}">
-
         <meta property="og:type" content="website">
         <meta property="og:title" content="{{ $pageTitle }}">
         <meta property="og:description" content="{{ $pageDescription }}">
         <meta property="og:url" content="{{ $canonicalUrl }}">
-        <meta property="og:site_name" content="Sales Tracker">
-
         <meta name="twitter:card" content="summary_large_image">
         <meta name="twitter:title" content="{{ $pageTitle }}">
         <meta name="twitter:description" content="{{ $pageDescription }}">
         <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-        <link rel="shortcut icon" href="{{ asset('favicon.svg') }}">
-
-        <script type="application/ld+json">
-            {!! json_encode($structuredData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
-        </script>
-        <x-assets />
+        <script type="application/ld+json">{!! json_encode($structuredData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+        {{-- Landing page uses self-contained CSS so it renders correctly without rebuilding Vite assets. --}}
+        <style>
+            *, *::before, *::after { box-sizing: border-box; }
+            html { overflow-x: hidden; }
+            body.landing-page {
+                margin: 0;
+                min-height: 100vh;
+                background: #070b14;
+                color: #e2e8f0;
+                font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                font-size: 16px;
+                line-height: 1.5;
+                -webkit-font-smoothing: antialiased;
+                font-feature-settings: "ss01", "cv01";
+            }
+            .landing-page a { color: inherit; text-decoration: none; }
+            .landing-page img { display: block; max-width: 100%; height: auto; }
+            .landing-glow {
+                min-height: 100vh;
+                background:
+                    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.12), transparent),
+                    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(99, 102, 241, 0.08), transparent);
+            }
+            .landing-container {
+                width: 100%;
+                max-width: 72rem;
+                margin-left: auto;
+                margin-right: auto;
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
+            }
+            .landing-container--narrow { max-width: 64rem; }
+            .landing-nav {
+                position: sticky;
+                top: 0;
+                z-index: 50;
+                background: rgba(7, 11, 20, 0.72);
+                backdrop-filter: blur(12px);
+                border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+            }
+            .landing-nav__inner {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                padding-top: 1rem;
+                padding-bottom: 1rem;
+            }
+            .landing-nav__logo { flex-shrink: 0; opacity: 0.95; transition: opacity 0.2s; }
+            .landing-nav__logo:hover { opacity: 1; }
+            .landing-nav__logo img { height: 2.25rem; width: auto; }
+            .landing-nav__links {
+                display: none;
+                align-items: center;
+                gap: 1.75rem;
+                font-size: 0.875rem;
+                color: #94a3b8;
+            }
+            .landing-nav__links a { transition: color 0.2s; }
+            .landing-nav__links a:hover { color: #fff; }
+            .landing-nav__actions {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .landing-nav__portfolio {
+                display: none;
+                padding: 0.5rem 0.75rem;
+                font-size: 0.875rem;
+                color: #94a3b8;
+                border-radius: 0.5rem;
+                transition: background 0.2s, color 0.2s;
+            }
+            .landing-nav__portfolio:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+            .landing-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 0.75rem;
+                padding: 0.625rem 1rem;
+                font-size: 0.875rem;
+                font-weight: 600;
+                transition: background 0.2s, border-color 0.2s, color 0.2s;
+                white-space: nowrap;
+            }
+            .landing-btn--primary {
+                background: #0ea5e9;
+                color: #020617;
+            }
+            .landing-btn--primary:hover { background: #38bdf8; }
+            .landing-btn--secondary {
+                border: 1px solid #334155;
+                background: #0f172a;
+                color: #f1f5f9;
+            }
+            .landing-btn--secondary:hover { border-color: #475569; background: #1e293b; }
+            .landing-btn--lg { padding: 0.75rem 1.5rem; border-radius: 0.75rem; }
+            .landing-hero {
+                padding-top: 3.5rem;
+                padding-bottom: 4rem;
+                text-align: center;
+            }
+            .landing-eyebrow {
+                color: #7dd3fc;
+                font-size: 0.8125rem;
+                font-weight: 500;
+                margin: 0;
+            }
+            .landing-hero__title {
+                margin: 1.25rem auto 0;
+                max-width: 48rem;
+                font-size: clamp(2rem, 5vw, 3.25rem);
+                font-weight: 600;
+                line-height: 1.12;
+                letter-spacing: -0.02em;
+                color: #fff;
+            }
+            .landing-hero__lead {
+                margin: 1.5rem auto 0;
+                max-width: 42rem;
+                font-size: 1.0625rem;
+                line-height: 1.65;
+                color: #94a3b8;
+            }
+            .landing-hero__lead a {
+                color: rgba(125, 211, 252, 0.9);
+                text-decoration: underline;
+                text-decoration-color: rgba(56, 189, 248, 0.3);
+                text-underline-offset: 3px;
+            }
+            .landing-hero__lead a:hover { color: #bae6fd; }
+            .landing-hero__actions {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: center;
+                gap: 0.75rem;
+                margin-top: 2.25rem;
+            }
+            .landing-pills {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.5rem;
+                margin: 2.5rem auto 0;
+                max-width: 42rem;
+            }
+            .landing-pill {
+                background: rgba(148, 163, 184, 0.06);
+                border: 1px solid rgba(148, 163, 184, 0.1);
+                border-radius: 9999px;
+                padding: 0.375rem 1rem;
+                font-size: 0.8125rem;
+                font-weight: 500;
+                color: #cbd5e1;
+            }
+            .landing-preview-wrap { padding-bottom: 5rem; }
+            .landing-preview {
+                overflow: hidden;
+                border-radius: 1rem;
+                background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(10, 15, 28, 0.98) 100%);
+                border: 1px solid rgba(148, 163, 184, 0.12);
+                box-shadow:
+                    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+                    0 24px 80px -24px rgba(0, 0, 0, 0.65),
+                    0 0 120px -40px rgba(56, 189, 248, 0.15);
+            }
+            .landing-preview__header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                padding: 1rem 1.25rem;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            }
+            .landing-preview__brand {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                min-width: 0;
+            }
+            .landing-preview__icon {
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 2rem;
+                height: 2rem;
+                border-radius: 0.5rem;
+                background: rgba(14, 165, 233, 0.15);
+                font-size: 0.75rem;
+                font-weight: 700;
+                color: #7dd3fc;
+            }
+            .landing-preview__brand p { margin: 0; }
+            .landing-preview__brand-title { font-size: 0.875rem; font-weight: 500; color: #fff; }
+            .landing-preview__brand-sub { font-size: 0.75rem; color: #94a3b8; }
+            .landing-preview__tabs {
+                display: none;
+                align-items: center;
+                gap: 1rem;
+                font-size: 0.75rem;
+                color: #94a3b8;
+                flex-shrink: 0;
+            }
+            .landing-preview__tabs .is-active { color: #fff; }
+            .landing-stats {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            }
+            .landing-stat {
+                padding: 1.25rem 1rem;
+                background: rgba(255, 255, 255, 0.03);
+            }
+            .landing-stat:nth-child(odd) { border-right: 1px solid rgba(255, 255, 255, 0.06); }
+            .landing-stat:nth-child(-n+2) { border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+            .landing-stat__label { margin: 0; font-size: 0.75rem; color: #94a3b8; }
+            .landing-stat__value {
+                margin: 0.375rem 0 0;
+                font-size: 1.75rem;
+                font-weight: 600;
+                font-variant-numeric: tabular-nums;
+                color: #fff;
+            }
+            .landing-stat__value--green { color: rgba(52, 211, 153, 0.9); }
+            .landing-stat__value--sky { color: rgba(56, 189, 248, 0.9); }
+            .landing-preview__grid {
+                display: grid;
+                gap: 1px;
+                background: rgba(255, 255, 255, 0.04);
+            }
+            .landing-preview__panel {
+                background: #0a101c;
+                padding: 1.25rem;
+            }
+            .landing-preview__panel-title { margin: 0; font-size: 0.875rem; font-weight: 500; color: #fff; }
+            .landing-preview__panel-sub { margin: 0.25rem 0 0; font-size: 0.75rem; color: #94a3b8; }
+            .landing-preview__list { list-style: none; margin: 1rem 0 0; padding: 0; }
+            .landing-preview__list li + li { margin-top: 0.625rem; }
+            .landing-preview__row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.75rem;
+                padding: 0.75rem 1rem;
+                border-radius: 0.75rem;
+                background: rgba(255, 255, 255, 0.03);
+            }
+            .landing-preview__row--plain { padding: 0; background: none; border-radius: 0; }
+            .landing-preview__row-text { min-width: 0; text-align: left; }
+            .landing-preview__row-text p { margin: 0; }
+            .landing-preview__name { font-size: 0.875rem; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .landing-preview__company { font-size: 0.75rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .landing-badge {
+                flex-shrink: 0;
+                border-radius: 9999px;
+                padding: 0.125rem 0.625rem;
+                font-size: 0.75rem;
+                font-weight: 500;
+            }
+            .landing-badge--amber { background: rgba(251, 191, 36, 0.1); color: rgba(253, 224, 171, 0.9); }
+            .landing-badge--sky { background: rgba(56, 189, 248, 0.1); color: rgba(186, 230, 253, 0.9); }
+            .landing-badge--green { color: rgba(52, 211, 153, 0.9); font-size: 0.875rem; font-weight: 500; }
+            .landing-caption {
+                margin-top: 1rem;
+                text-align: center;
+                font-size: 0.75rem;
+                color: #94a3b8;
+            }
+            .landing-section { padding-top: 4rem; padding-bottom: 4rem; }
+            .landing-section__head {
+                max-width: 42rem;
+                margin: 0 auto;
+                text-align: center;
+            }
+            .landing-section__title {
+                margin: 0.75rem 0 0;
+                font-size: clamp(1.75rem, 4vw, 2.25rem);
+                font-weight: 600;
+                letter-spacing: -0.02em;
+                color: #fff;
+            }
+            .landing-section__lead {
+                margin: 1rem 0 0;
+                font-size: 0.9375rem;
+                line-height: 1.65;
+                color: #94a3b8;
+            }
+            .landing-cards {
+                display: grid;
+                gap: 1rem;
+                margin-top: 3rem;
+            }
+            .landing-card {
+                background: rgba(15, 23, 42, 0.45);
+                border: 1px solid rgba(148, 163, 184, 0.08);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                transition: border-color 0.2s, background 0.2s;
+            }
+            .landing-card:hover {
+                border-color: rgba(56, 189, 248, 0.18);
+                background: rgba(15, 23, 42, 0.65);
+            }
+            .landing-card__title { margin: 0; font-size: 1.125rem; font-weight: 600; color: #fff; }
+            .landing-card__copy { margin: 0.5rem 0 0; font-size: 0.875rem; line-height: 1.65; color: #94a3b8; }
+            .landing-workflow {
+                border-radius: 1.5rem;
+                padding: 2rem;
+            }
+            .landing-workflow__grid {
+                display: grid;
+                gap: 2.5rem;
+            }
+            .landing-steps { list-style: none; margin: 0; padding: 0; }
+            .landing-steps li + li { margin-top: 0.75rem; }
+            .landing-step {
+                display: flex;
+                gap: 1rem;
+                padding: 1rem;
+                border-radius: 0.75rem;
+                background: rgba(255, 255, 255, 0.02);
+            }
+            .landing-step__num {
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 2rem;
+                height: 2rem;
+                border-radius: 9999px;
+                background: rgba(14, 165, 233, 0.1);
+                font-size: 0.875rem;
+                font-weight: 600;
+                color: #7dd3fc;
+            }
+            .landing-step__title { margin: 0; font-weight: 500; color: #fff; }
+            .landing-step__copy { margin: 0.125rem 0 0; font-size: 0.875rem; color: #94a3b8; }
+            .landing-split {
+                display: grid;
+                gap: 1.25rem;
+                padding-bottom: 4rem;
+            }
+            .landing-cta {
+                border-radius: 1.5rem;
+                padding: 3rem 1.5rem;
+                text-align: center;
+                background: linear-gradient(180deg, rgba(14, 165, 233, 0.08), transparent);
+            }
+            .landing-cta__actions {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.75rem;
+                margin-top: 1.75rem;
+            }
+            .landing-footer {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.75rem;
+                margin-top: 3rem;
+                padding-top: 2rem;
+                border-top: 1px solid rgba(255, 255, 255, 0.06);
+                font-size: 0.8125rem;
+                color: #94a3b8;
+            }
+            .landing-footer a:hover { color: #cbd5e1; }
+            .landing-tag-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.25rem; }
+            .landing-tag {
+                background: rgba(148, 163, 184, 0.06);
+                border: 1px solid rgba(148, 163, 184, 0.1);
+                border-radius: 0.5rem;
+                padding: 0.375rem 0.75rem;
+                font-size: 0.75rem;
+                font-weight: 500;
+                color: #cbd5e1;
+            }
+            @media (min-width: 640px) {
+                .landing-container { padding-left: 2rem; padding-right: 2rem; }
+                .landing-nav__portfolio { display: inline-block; }
+                .landing-hero { padding-top: 5rem; }
+                .landing-preview { border-radius: 1.5rem; }
+                .landing-preview__header { padding: 1rem 1.5rem; }
+                .landing-preview__tabs { display: flex; }
+                .landing-stat { padding: 1.5rem; }
+                .landing-stat__value { font-size: 1.875rem; }
+                .landing-preview__panel { padding: 1.5rem; }
+                .landing-card { padding: 1.75rem; border-radius: 1rem; }
+                .landing-workflow { padding: 2.5rem; }
+                .landing-footer { flex-direction: row; font-size: 0.875rem; }
+            }
+            @media (min-width: 768px) {
+                .landing-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+                .landing-preview__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            }
+            @media (min-width: 1024px) {
+                .landing-nav__links { display: flex; }
+                .landing-hero { padding-top: 6rem; }
+                .landing-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+                .landing-stat { border-right: 1px solid rgba(255, 255, 255, 0.06); border-bottom: none !important; }
+                .landing-stat:last-child { border-right: none; }
+                .landing-workflow__grid { grid-template-columns: 1fr 1fr; align-items: center; }
+                .landing-split { grid-template-columns: 1fr 1fr; }
+            }
+        </style>
     </head>
-    <body class="min-h-screen bg-slate-950 text-slate-100">
-        <div class="relative overflow-hidden bg-slate-950">
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.2),_transparent_28%),radial-gradient(circle_at_80%_10%,_rgba(99,102,241,0.18),_transparent_26%),linear-gradient(180deg,_rgba(2,6,23,0.2),_rgba(2,6,23,1))]"></div>
-            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/40 to-transparent"></div>
-
-            <header class="relative z-10">
-                <div class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-6 sm:px-6 lg:px-8">
-                    <a href="{{ $canonicalUrl }}" class="shrink-0">
-                        <img src="{{ $logoUrl }}" alt="Sales Tracker" class="h-10 w-auto sm:h-12">
+    <body class="landing-page">
+        <div class="landing-glow">
+            <header class="landing-nav">
+                <div class="landing-container landing-nav__inner">
+                    <a href="{{ $canonicalUrl }}" class="landing-nav__logo">
+                        <img src="{{ $logoUrl }}" alt="Sales Tracker">
                     </a>
-
-                    <div class="hidden items-center gap-8 text-sm text-slate-300 lg:flex">
-                        <a href="#features" class="transition hover:text-white">Features</a>
-                        <a href="#workflow" class="transition hover:text-white">Workflow</a>
-                        <a href="#delivery" class="transition hover:text-white">Delivery</a>
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                        <a href="{{ $contactHref }}" class="btn-secondary">Book demo</a>
-                        <a href="{{ route('login') }}" class="btn-primary">Log in</a>
+                    <nav class="landing-nav__links" aria-label="Page sections">
+                        <a href="#features">Features</a>
+                        <a href="#preview">Preview</a>
+                        <a href="#workflow">Workflow</a>
+                    </nav>
+                    <div class="landing-nav__actions">
+                        <a href="{{ $portfolioUrl }}" target="_blank" rel="noopener" class="landing-nav__portfolio">Portfolio</a>
+                        <a href="{{ route('login') }}" class="landing-btn landing-btn--primary">Log in</a>
                     </div>
                 </div>
             </header>
 
-            <main class="relative z-10">
-                <section class="mx-auto max-w-7xl px-4 pb-14 pt-10 sm:px-6 lg:px-8 lg:pb-24 lg:pt-14">
-                    <div class="grid gap-14 lg:grid-cols-[1.02fr,0.98fr] lg:items-center">
-                        <div class="max-w-2xl">
-                            <div class="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-sky-200">
-                                Private AI-powered outreach CRM
-                            </div>
+            <main>
+                <section class="landing-container landing-hero">
+                    <p class="landing-eyebrow">Laravel outreach CRM · portfolio case study</p>
 
-                            <h1 class="mt-8 text-4xl font-semibold leading-[1.02] tracking-tight text-white sm:text-5xl lg:text-7xl">
-                                Turn lead discovery, outreach, and follow-up into one clean revenue system.
-                            </h1>
+                    <h1 class="landing-hero__title">
+                        B2B outreach with AI leads, tracked email, and sequences on schedule.
+                    </h1>
 
-                            <p class="mt-6 max-w-xl text-lg leading-8 text-slate-300 sm:text-xl">
-                                Sales Tracker is a ready-built CRM for businesses that sell products or services and want to stop
-                                finding leads manually, losing replies, or managing outreach across scattered tools.
-                            </p>
+                    <p class="landing-hero__lead">
+                        Built to run live outbound for
+                        <a href="{{ $fieldlineUrl }}" target="_blank" rel="noopener">FieldLine</a>.
+                        Find UK leads, send cold email with open tracking, automate follow-ups on business days, and read the pipeline in one calm workspace.
+                    </p>
 
-                            <div class="mt-8 flex flex-wrap gap-4">
-                                <a href="{{ $contactHref }}" class="btn-primary px-6 py-3 text-base">Book demo</a>
-                                <a href="{{ route('login') }}" class="btn-secondary px-6 py-3 text-base">Existing client log in</a>
-                            </div>
-
-                            <div class="mt-10 grid gap-4 sm:grid-cols-3">
-                                <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                                    <div class="text-2xl font-semibold text-white">AI</div>
-                                    <p class="mt-2 text-sm leading-6 text-slate-400">Prompt-based lead discovery for faster targeting.</p>
-                                </div>
-                                <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                                    <div class="text-2xl font-semibold text-white">Inbox</div>
-                                    <p class="mt-2 text-sm leading-6 text-slate-400">Email threads, opens, replies, and follow-up visibility.</p>
-                                </div>
-                                <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                                    <div class="text-2xl font-semibold text-white">Control</div>
-                                    <p class="mt-2 text-sm leading-6 text-slate-400">Private deployment, ownership, and business-specific delivery.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="relative">
-                            <div class="absolute -left-6 top-10 h-28 w-28 rounded-full bg-sky-400/20 blur-3xl"></div>
-                            <div class="absolute -right-4 bottom-10 h-36 w-36 rounded-full bg-indigo-500/20 blur-3xl"></div>
-
-                            <div class="relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/80 shadow-[0_40px_120px_-30px_rgba(14,165,233,0.35)] backdrop-blur">
-                                <div class="border-b border-white/10 bg-white/5 px-5 py-4">
-                                    <div class="flex items-center justify-between gap-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="flex gap-2">
-                                                <span class="h-2.5 w-2.5 rounded-full bg-rose-400/80"></span>
-                                                <span class="h-2.5 w-2.5 rounded-full bg-amber-400/80"></span>
-                                                <span class="h-2.5 w-2.5 rounded-full bg-emerald-400/80"></span>
-                                            </div>
-                                            <p class="text-sm font-medium text-slate-300">Revenue workflow preview</p>
-                                        </div>
-                                        <div class="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-200">
-                                            Delivered privately
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="grid gap-5 p-5">
-                                    <div class="grid gap-4 sm:grid-cols-[1.1fr,0.9fr]">
-                                        <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                                            <div class="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">AI lead search</p>
-                                                    <h2 class="mt-3 text-xl font-semibold text-white">Target businesses without manual research</h2>
-                                                </div>
-                                                <div class="rounded-2xl bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200">
-                                                    Active
-                                                </div>
-                                            </div>
-                                            <div class="mt-5 space-y-3">
-                                                <div class="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-                                                    <div class="flex items-center justify-between gap-3">
-                                                        <p class="text-sm font-medium text-white">B2B SaaS companies in UAE</p>
-                                                        <span class="text-xs text-slate-400">24 leads</span>
-                                                    </div>
-                                                    <p class="mt-2 text-sm text-slate-400">Prompt matched, enriched, and ready to review.</p>
-                                                </div>
-                                                <div class="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-                                                    <div class="flex items-center justify-between gap-3">
-                                                        <p class="text-sm font-medium text-white">Ecommerce brands needing outreach</p>
-                                                        <span class="text-xs text-slate-400">18 leads</span>
-                                                    </div>
-                                                    <p class="mt-2 text-sm text-slate-400">New target set generated with reusable prompt presets.</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="grid gap-4">
-                                            <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                                                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">Inbox status</p>
-                                                <div class="mt-4 space-y-3">
-                                                    <div class="flex items-center justify-between rounded-2xl bg-slate-950/70 px-4 py-3">
-                                                        <span class="text-sm text-slate-300">Opened</span>
-                                                        <span class="text-sm font-semibold text-white">42</span>
-                                                    </div>
-                                                    <div class="flex items-center justify-between rounded-2xl bg-slate-950/70 px-4 py-3">
-                                                        <span class="text-sm text-slate-300">Replied</span>
-                                                        <span class="text-sm font-semibold text-white">11</span>
-                                                    </div>
-                                                    <div class="flex items-center justify-between rounded-2xl bg-slate-950/70 px-4 py-3">
-                                                        <span class="text-sm text-slate-300">Due follow-ups</span>
-                                                        <span class="text-sm font-semibold text-white">7</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="rounded-3xl border border-white/10 bg-gradient-to-br from-sky-500/20 to-indigo-500/20 p-5">
-                                                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-100">Why teams buy it</p>
-                                                <p class="mt-3 text-lg font-semibold text-white">One system to find leads, send outreach, track replies, and keep sales moving.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="grid gap-4 sm:grid-cols-3">
-                                        <div class="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Contacts</p>
-                                            <p class="mt-2 text-sm text-slate-300">Campaign-linked contact records with full history.</p>
-                                        </div>
-                                        <div class="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Templates</p>
-                                            <p class="mt-2 text-sm text-slate-300">Reusable outreach messages with edit-friendly content.</p>
-                                        </div>
-                                        <div class="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">Permissions</p>
-                                            <p class="mt-2 text-sm text-slate-300">Role-based access for teams and managers.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="relative z-10 border-y border-white/5 bg-white/[0.03]">
-                    <div class="mx-auto grid max-w-7xl gap-6 px-4 py-6 text-sm text-slate-300 sm:px-6 lg:grid-cols-3 lg:px-8">
-                        <div class="rounded-2xl border border-white/10 bg-slate-900/50 px-4 py-4">Built for outbound sales, prospecting, and business development teams.</div>
-                        <div class="rounded-2xl border border-white/10 bg-slate-900/50 px-4 py-4">Combines AI lead search, CRM workflow, email threading, and reporting.</div>
-                        <div class="rounded-2xl border border-white/10 bg-slate-900/50 px-4 py-4">Delivered as your own system, not a shared subscription app.</div>
-                    </div>
-                </section>
-
-                <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8" id="features">
-                    <div class="max-w-2xl">
-                        <p class="text-sm font-semibold uppercase tracking-[0.28em] text-sky-200">What it solves</p>
-                        <h2 class="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">A better system for businesses that sell through outbound outreach.</h2>
+                    <div class="landing-hero__actions">
+                        <a href="{{ route('login') }}" class="landing-btn landing-btn--primary landing-btn--lg">Log in to live app</a>
+                        <a href="{{ $contactHref }}" class="landing-btn landing-btn--secondary landing-btn--lg">Enquire about delivery</a>
                     </div>
 
-                    <div class="mt-10 grid gap-6 lg:grid-cols-3">
-                        @foreach ($painPoints as $point)
-                            <div class="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-6">
-                                <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-sky-400/20 to-indigo-400/20"></div>
-                                <h3 class="mt-5 text-xl font-semibold text-white">{{ $point['title'] }}</h3>
-                                <p class="mt-3 text-sm leading-7 text-slate-400">{{ $point['copy'] }}</p>
-                            </div>
+                    <div class="landing-pills">
+                        @foreach (['AI lead search', 'Email sequences', 'Open tracking', 'Live reports'] as $pill)
+                            <span class="landing-pill">{{ $pill }}</span>
                         @endforeach
                     </div>
                 </section>
 
-                <section class="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-                    <div class="grid gap-6 lg:grid-cols-2">
-                        @foreach ($featureCards as $card)
-                            <div class="rounded-[2rem] border border-white/10 bg-slate-900/65 p-7 shadow-2xl shadow-slate-950/20">
-                                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">{{ $card['eyebrow'] }}</p>
-                                <h3 class="mt-4 text-2xl font-semibold text-white">{{ $card['title'] }}</h3>
-                                <p class="mt-4 text-sm leading-7 text-slate-400">{{ $card['copy'] }}</p>
+                <section class="landing-container landing-container--narrow landing-preview-wrap" id="preview">
+                    <div class="landing-preview">
+                        <div class="landing-preview__header">
+                            <div class="landing-preview__brand">
+                                <div class="landing-preview__icon">ST</div>
+                                <div>
+                                    <p class="landing-preview__brand-title">Sales Tracker</p>
+                                    <p class="landing-preview__brand-sub">Reports overview</p>
+                                </div>
                             </div>
-                        @endforeach
-                    </div>
-                </section>
-
-                <section class="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8" id="workflow">
-                    <div class="overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-900 to-slate-950">
-                        <div class="grid gap-8 p-8 lg:grid-cols-[0.95fr,1.05fr] lg:p-10">
-                            <div class="max-w-xl">
-                                <p class="text-sm font-semibold uppercase tracking-[0.28em] text-sky-200">Core workflow</p>
-                                <h2 class="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">From lead discovery to reply handling, all in one view.</h2>
-                                <p class="mt-5 text-sm leading-7 text-slate-400">
-                                    Sales Tracker is built to reduce admin overhead and give teams a clear operational flow:
-                                    find prospects, launch outreach, monitor engagement, and keep follow-ups moving.
-                                </p>
-                            </div>
-
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                                    <p class="text-sm font-semibold text-white">1. Find targets</p>
-                                    <p class="mt-2 text-sm leading-6 text-slate-400">Run AI prompt presets for the businesses and buyer profiles you want to reach.</p>
-                                </div>
-                                <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                                    <p class="text-sm font-semibold text-white">2. Organize campaigns</p>
-                                    <p class="mt-2 text-sm leading-6 text-slate-400">Save leads, assign campaigns, and manage messaging from one CRM workspace.</p>
-                                </div>
-                                <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                                    <p class="text-sm font-semibold text-white">3. Track engagement</p>
-                                    <p class="mt-2 text-sm leading-6 text-slate-400">See opened emails, threaded replies, and current outreach status without guessing.</p>
-                                </div>
-                                <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                                    <p class="text-sm font-semibold text-white">4. Follow up consistently</p>
-                                    <p class="mt-2 text-sm leading-6 text-slate-400">Use reminders, notes, and contact history to keep opportunities from going cold.</p>
-                                </div>
+                            <div class="landing-preview__tabs">
+                                <span class="is-active">Reports</span>
+                                <span>Sequences</span>
+                                <span>Inbox</span>
                             </div>
                         </div>
-                    </div>
-                </section>
 
-                <section class="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8" id="delivery">
-                    <div class="grid gap-8 lg:grid-cols-[0.9fr,1.1fr] lg:items-start">
-                        <div>
-                            <p class="text-sm font-semibold uppercase tracking-[0.28em] text-sky-200">Delivery model</p>
-                            <h2 class="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Built for private delivery, ownership, and customization.</h2>
-                            <p class="mt-5 text-sm leading-7 text-slate-400">
-                                This is not positioned as a self-serve SaaS product. It is sold as a ready-built system
-                                that can be delivered for a business as its own outreach operation platform.
-                            </p>
-                        </div>
-
-                        <div class="grid gap-4">
-                            @foreach ($deliveryPoints as $point)
-                                <div class="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                                    <div class="flex gap-4">
-                                        <div class="mt-1 h-3 w-3 shrink-0 rounded-full bg-sky-300"></div>
-                                        <p class="text-sm leading-7 text-slate-300">{{ $point }}</p>
-                                    </div>
+                        <div class="landing-stats">
+                            @foreach ([['Sent', '253', ''], ['Open rate', '56%', 'landing-stat__value--green'], ['Reply rate', '4.6%', 'landing-stat__value--sky'], ['Active sequences', '22', '']] as [$label, $val, $colorClass])
+                                <div class="landing-stat">
+                                    <p class="landing-stat__label">{{ $label }}</p>
+                                    <p class="landing-stat__value {{ $colorClass }}">{{ $val }}</p>
                                 </div>
                             @endforeach
                         </div>
+
+                        <div class="landing-preview__grid">
+                            <div class="landing-preview__panel">
+                                <p class="landing-preview__panel-title">Sequences due today</p>
+                                <p class="landing-preview__panel-sub">3 contacts on the automation queue</p>
+                                <ul class="landing-preview__list">
+                                    <li class="landing-preview__row">
+                                        <span>Follow-up</span>
+                                        <span class="landing-badge landing-badge--amber">Due now</span>
+                                    </li>
+                                    <li class="landing-preview__row">
+                                        <span>Final nudge</span>
+                                        <span class="landing-badge landing-badge--sky">Monday</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="landing-preview__panel">
+                                <p class="landing-preview__panel-title">Hottest opens</p>
+                                <p class="landing-preview__panel-sub">Prioritize personal follow-up</p>
+                                <ul class="landing-preview__list">
+                                    <li class="landing-preview__row landing-preview__row--plain">
+                                        <div class="landing-preview__row-text">
+                                            <p class="landing-preview__name">Sarah Mitchell</p>
+                                            <p class="landing-preview__company">Northgate Security</p>
+                                        </div>
+                                        <span class="landing-badge landing-badge--green">14</span>
+                                    </li>
+                                    <li class="landing-preview__row landing-preview__row--plain">
+                                        <div class="landing-preview__row-text">
+                                            <p class="landing-preview__name">James Cooper</p>
+                                            <p class="landing-preview__company">Summit Guarding</p>
+                                        </div>
+                                        <span class="landing-badge landing-badge--green">9</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="landing-caption">Illustrative UI — log in to see your live data.</p>
+                </section>
+
+                <section class="landing-container landing-section" id="features">
+                    <div class="landing-section__head">
+                        <p class="landing-eyebrow">Features</p>
+                        <h2 class="landing-section__title">Everything in one outreach workspace</h2>
+                        <p class="landing-section__lead">Real modules from the shipped app — not mockups on a slide deck.</p>
+                    </div>
+                    <div class="landing-cards">
+                        @foreach ($featureCards as $card)
+                            <article class="landing-card">
+                                <h3 class="landing-card__title">{{ $card['title'] }}</h3>
+                                <p class="landing-card__copy">{{ $card['copy'] }}</p>
+                            </article>
+                        @endforeach
                     </div>
                 </section>
 
-                <section class="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
-                    <div class="relative overflow-hidden rounded-[2.25rem] border border-sky-400/20 bg-gradient-to-br from-sky-500/15 via-slate-900 to-indigo-500/15 px-6 py-12 text-center sm:px-10 lg:py-16">
-                        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-300/60 to-transparent"></div>
-                        <p class="text-sm font-semibold uppercase tracking-[0.3em] text-sky-200">Ready to sell smarter?</p>
-                        <h2 class="mx-auto mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
-                            Get a modern outreach CRM that helps your business find leads, manage outreach, and close with more control.
-                        </h2>
-                        <p class="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-300">
-                            Book a demo to discuss delivery, customization, and fit. Existing users can log in to access the CRM immediately.
-                        </p>
-                        <div class="mt-8 flex flex-wrap justify-center gap-4">
-                            <a href="{{ $contactHref }}" class="btn-primary px-6 py-3 text-base">Book demo</a>
-                            <a href="{{ route('login') }}" class="btn-secondary px-6 py-3 text-base">Log in</a>
+                <section class="landing-container landing-section" id="workflow" style="padding-top: 0;">
+                    <div class="landing-card landing-workflow">
+                        <div class="landing-workflow__grid">
+                            <div>
+                                <p class="landing-eyebrow">Workflow</p>
+                                <h2 class="landing-section__title">Search → email → automate → convert</h2>
+                                <p class="landing-section__lead">Small batches of clean leads, sequenced email, then personal follow-up on contacts who engage.</p>
+                                <a href="{{ route('login') }}" class="landing-btn landing-btn--primary" style="margin-top: 1.5rem;">Open the CRM</a>
+                            </div>
+                            <ol class="landing-steps">
+                                @foreach ($workflowSteps as $i => $step)
+                                    <li class="landing-step">
+                                        <span class="landing-step__num">{{ $i + 1 }}</span>
+                                        <div>
+                                            <p class="landing-step__title">{{ $step['title'] }}</p>
+                                            <p class="landing-step__copy">{{ $step['copy'] }}</p>
+                                        </div>
+                                    </li>
+                                @endforeach
+                            </ol>
                         </div>
                     </div>
+                </section>
+
+                <section class="landing-container landing-split" id="stack">
+                    <div class="landing-card">
+                        <p class="landing-eyebrow">Built with</p>
+                        <h2 class="landing-card__title">Production Laravel stack</h2>
+                        <div class="landing-tag-row">
+                            @foreach ($techStack as $item)
+                                <span class="landing-tag">{{ $item }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="landing-card">
+                        <p class="landing-eyebrow">Case study</p>
+                        <h2 class="landing-card__title">Selling FieldLine to UK guarding firms</h2>
+                        <p class="landing-card__copy">Sequence discipline, hot-open surfacing, and honest pipeline status — so volume does not hide weak conversion.</p>
+                        <div class="landing-tag-row">
+                            <a href="{{ $fieldlineUrl }}" target="_blank" rel="noopener" class="landing-btn landing-btn--secondary">FieldLine demo</a>
+                            <a href="{{ $portfolioUrl }}" target="_blank" rel="noopener" class="landing-btn landing-btn--secondary">yousiffarra.com</a>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="landing-container" style="padding-bottom: 5rem;">
+                    <div class="landing-cta">
+                        <h2 class="landing-section__title">See it running on real outreach</h2>
+                        <p class="landing-section__lead" style="max-width: 28rem; margin-left: auto; margin-right: auto;">Log in to explore reports, sequences, and inbox — or ask about a custom build.</p>
+                        <div class="landing-cta__actions">
+                            <a href="{{ route('login') }}" class="landing-btn landing-btn--primary landing-btn--lg">Log in</a>
+                            <a href="{{ $contactHref }}" class="landing-btn landing-btn--secondary landing-btn--lg">Contact</a>
+                        </div>
+                    </div>
+                    <footer class="landing-footer">
+                        <p>&copy; {{ date('Y') }} Sales Tracker · <a href="{{ $portfolioUrl }}">Yousif Elfarra</a></p>
+                        <a href="{{ route('login') }}">Log in</a>
+                    </footer>
                 </section>
             </main>
         </div>
